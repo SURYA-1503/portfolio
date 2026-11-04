@@ -5,6 +5,7 @@ import { BOOKS_CATALOG } from "../../data/booksCatalog";
 import { Button } from "../ui/Button";
 import { GithubIcon, LinkedinIcon } from "../ui/Icons";
 import confetti from "canvas-confetti";
+import { submitContactMessage } from "../../lib/portfolioService";
 import {
   X,
   ArrowLeft,
@@ -22,7 +23,17 @@ import {
   FileText,
   MapPin,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  Phone,
+  Clock,
+  Award,
+  Code2,
+  Briefcase,
+  GraduationCap,
+  Heart,
+  Music,
+  Gamepad2,
+  Compass
 } from "lucide-react";
 
 export function PhysicalBookReader({ bookIndex, onClose }) {
@@ -129,18 +140,28 @@ export function PhysicalBookReader({ bookIndex, onClose }) {
     setTimeout(() => setCopiedEmail(false), 2400);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    setFormSent(true);
+    if (!formData.name || !formData.email || !formData.message) return;
+
     try {
-      confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.7 },
-        colors: ["#10b981", "#ffffff", currentBookMeta.color]
-      });
-    } catch (err) {}
-    setTimeout(() => setFormSent(false), 4000);
+      const result = await submitContactMessage(formData);
+      setFormSent(true);
+      setFormData({ name: "", email: "", message: "" });
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.7 },
+          colors: ["#10b981", "#ffffff", currentBookMeta.color]
+        });
+      } catch (err) {}
+      setTimeout(() => setFormSent(false), 4000);
+    } catch (err) {
+      console.error("Contact submit error:", err);
+      setFormSent(true);
+      setTimeout(() => setFormSent(false), 4000);
+    }
   };
 
   // ================= RENDER INDEX PAGE (PAGE 0) =================
@@ -847,40 +868,49 @@ export function PhysicalBookReader({ bookIndex, onClose }) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-hidden select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto select-none"
+           style={{ background: "rgba(4,5,10,0.88)", backdropFilter: "blur(6px)" }}>
+
+        {/* Book Stage — click backdrop to close */}
+        <div
+          className="absolute inset-0"
+          onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+        />
+
         {/* The 3D Book Stage with realistic perspective */}
-        <div className="relative w-full max-w-2xl my-auto py-2" style={{ perspective: "2600px" }}>
+        <div className="relative w-full max-w-2xl my-auto py-2 z-10" style={{ perspective: "2800px" }}>
+
           {/* Top Control Bar */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between pb-3 px-2 text-xs font-mono text-neutral-300"
+            className="flex items-center justify-between pb-3 px-1 text-xs font-mono text-neutral-300"
           >
             <button
               type="button"
               onClick={handleClose}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900/90 border border-neutral-700 hover:border-neutral-400 text-neutral-100 transition-all cursor-pointer shadow-lg"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900/95 border border-neutral-700 hover:border-neutral-500 text-neutral-100 transition-all cursor-pointer shadow-lg hover:shadow-xl"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span className="font-bold uppercase tracking-wider text-[11px]">
-                Return to Shelf <span className="text-neutral-400 font-normal">[ESC]</span>
+                Return to Shelf <span className="text-neutral-500 font-normal">[ESC]</span>
               </span>
             </button>
 
-            {/* Page Indicator Pill: "INDEX", "1 / 2", "2 / 2" */}
+            {/* Page Indicator */}
             <div className="flex items-center gap-2">
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className="w-2.5 h-2.5 rounded-full ring-2 ring-black/30"
                 style={{ backgroundColor: currentBookMeta.color }}
               />
-              <span className="font-mono text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-900 border border-neutral-700 text-neutral-200">
-                {currentPage === 0 ? "INDEX PAGE" : `PAGE ${currentPage} / 2`}
+              <span className="font-mono text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-neutral-900/95 border border-neutral-700 text-neutral-200">
+                {currentPage === 0 ? "CONTENTS" : `PAGE ${currentPage} / 2`}
               </span>
               <button
                 type="button"
                 onClick={handleClose}
-                className="p-1.5 ml-2 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 ml-1 rounded-full text-neutral-500 hover:text-white hover:bg-neutral-800 transition-all cursor-pointer"
                 aria-label="Close Book"
               >
                 <X className="w-4 h-4" />
@@ -890,46 +920,106 @@ export function PhysicalBookReader({ bookIndex, onClose }) {
 
           {/* PHYSICAL 3D BOOK WITH REAL ROTATING COVER & 3D PAGE FLIPPING */}
           <motion.div
-            initial={{ scale: 0.78, y: 50, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.78, y: 50, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 25 }}
-            className="relative rounded-2xl shadow-[0_35px_100px_-20px_rgba(0,0,0,0.95)] border-4 border-[#241710] bg-[#2a1b14] p-2 sm:p-3 min-h-[560px] max-h-[82vh] flex flex-col justify-between"
-            style={{ transformStyle: "preserve-3d" }}
+            initial={{ scale: 0.82, y: 48, opacity: 0, rotateX: 8 }}
+            animate={{ scale: 1, y: 0, opacity: 1, rotateX: 0 }}
+            exit={{ scale: 0.82, y: 48, opacity: 0, rotateX: 8 }}
+            transition={{ type: "spring", stiffness: 240, damping: 26 }}
+            className="relative shadow-[0_40px_120px_-15px_rgba(0,0,0,0.98)] border-4 border-[#1c1208]"
+            style={{
+              borderRadius: "16px",
+              background: "linear-gradient(135deg, #2e1c10 0%, #1e1208 50%, #2a1810 100%)",
+              padding: "10px",
+              minHeight: "580px",
+              maxHeight: "84vh",
+              display: "flex",
+              flexDirection: "column",
+              transformStyle: "preserve-3d"
+            }}
           >
-            {/* Top Silk Red Bookmark Ribbon hanging from spine */}
-            <div className="absolute -top-3 left-8 w-4 h-12 bg-rose-700 shadow-md z-30 rounded-b-sm border-x border-rose-900 pointer-events-none" />
-
-            {/* SINGLE PAGE AT A TIME READING BED */}
+            {/* Silk bookmark ribbon */}
             <div
-              className="rounded-xl overflow-hidden bg-[#faf6ee] text-[#1e1b18] shadow-inner relative flex-1 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto"
+              className="absolute -top-2 left-10 w-3.5 h-10 z-30 rounded-b-sm pointer-events-none shadow-lg"
+              style={{ background: "linear-gradient(to bottom, #be123c, #9f1239)" }}
+            />
+
+            {/* Paper page side strips (book depth illusion) */}
+            <div className="absolute -right-1.5 top-2 bottom-2 w-2 rounded-r-sm pointer-events-none"
+                 style={{ background: "linear-gradient(to right, #e8dfc8, #f5edd8)" }} />
+
+            {/* READING BED */}
+            <div
+              className="rounded-xl overflow-hidden text-[#1e1b18] relative flex-1 flex flex-col"
               style={{
-                background:
-                  "linear-gradient(to right, rgba(0,0,0,0.06) 0%, rgba(255,255,255,0.4) 6%, #faf6ee 12%, #faf6ee 98%, rgba(0,0,0,0.05) 100%)"
+                background: "linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(255,255,255,0.3) 3%, #faf6ee 8%, #faf6ee 96%, rgba(0,0,0,0.04) 100%)",
               }}
             >
-              {/* CURRENT ACTIVE PAGE CONTENT (Fades and animates cleanly) */}
-              <div className="relative z-10 flex-1">
-                {currentPage === 0 && renderIndexPage()}
-                {currentPage === 1 && renderPage1()}
-                {currentPage === 2 && renderPage2()}
+              {/* Subtle paper texture overlay */}
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                   style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")" }} />
+
+              {/* Chapter header strip */}
+              <div
+                className="relative z-10 px-6 sm:px-8 py-3 border-b border-[#e0d4bc] flex items-center justify-between"
+                style={{ background: "linear-gradient(to right, rgba(0,0,0,0.03), transparent)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: currentBookMeta.color }}
+                  />
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#8c7e6c] font-bold">
+                    {currentBookMeta.category}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-[#a08c78]">
+                  VOL. {currentBookMeta.index} · SURYA M.
+                </span>
               </div>
 
-              {/* BOTTOM NAVIGATION FOOTER WITH REALISTIC PAGE CONTROLS */}
+              {/* Page content area */}
+              <div
+                className="relative z-10 flex-1 p-5 sm:p-7 overflow-y-auto"
+                style={{ maxHeight: "calc(84vh - 160px)" }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentPage}
+                    initial={{ opacity: 0, x: flipDirection === "next" ? 20 : -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: flipDirection === "next" ? -20 : 20 }}
+                    transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
+                  >
+                    {currentPage === 0 && renderIndexPage()}
+                    {currentPage === 1 && renderPage1()}
+                    {currentPage === 2 && renderPage2()}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Page footer navigation */}
               {currentPage > 0 && (
-                <div className="pt-4 border-t border-[#ded1bb] flex items-center justify-between text-xs font-mono text-[#6c5d4b] mt-4 relative z-20">
+                <div className="relative z-20 px-5 sm:px-7 py-3.5 border-t border-[#e0d4bc] flex items-center justify-between"
+                     style={{ background: "linear-gradient(to right, rgba(0,0,0,0.02), transparent)" }}>
                   <button
                     type="button"
                     onClick={handlePrev}
                     disabled={isFlipping}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ebdcc6] hover:bg-[#ded1bb] text-[#1a1510] font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer disabled:opacity-40 text-sm hover:scale-105 active:scale-95"
+                    style={{ background: "#ebdcc6", color: "#1a1510", border: "1px solid #d6c7b0" }}
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span>{currentPage === 1 ? "← Contents (Index)" : "← Page 1 / 2"}</span>
+                    <span className="text-xs">{currentPage === 1 ? "Contents" : "Page 1"}</span>
                   </button>
 
-                  <div className="font-bold text-[#1a1510] text-[11px]">
-                    {currentPage} / 2
+                  <div className="flex items-center gap-2">
+                    {[1, 2].map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => !isFlipping && p !== currentPage && turnToPage(p, p > currentPage ? "next" : "prev")}
+                        className={`w-2 h-2 rounded-full transition-all cursor-pointer ${p === currentPage ? "scale-125" : "opacity-40 hover:opacity-70"}`}
+                        style={{ backgroundColor: p === currentPage ? currentBookMeta.color : "#8c7e6c" }}
+                      />
+                    ))}
                   </div>
 
                   {currentPage === 1 ? (
@@ -937,103 +1027,104 @@ export function PhysicalBookReader({ bookIndex, onClose }) {
                       type="button"
                       onClick={handleNext}
                       disabled={isFlipping}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ebdcc6] hover:bg-[#ded1bb] text-[#1a1510] font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer disabled:opacity-40 text-sm hover:scale-105 active:scale-95"
+                      style={{ background: "#ebdcc6", color: "#1a1510", border: "1px solid #d6c7b0" }}
                     >
-                      <span>Next Page (2 / 2) →</span>
+                      <span className="text-xs">Page 2</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#1a1510] text-[#faf6ee] font-bold hover:bg-[#2c241c] transition-all cursor-pointer shadow-md"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer text-sm hover:scale-105 active:scale-95"
+                      style={{ background: "#1a1510", color: "#faf6ee" }}
                     >
-                      <span>Finish &amp; Close ✕</span>
+                      <span className="text-xs">Close ✕</span>
                     </button>
                   )}
                 </div>
               )}
             </div>
 
-            {/* 3D TURNING LEAF (Simulates realistic physical paper bending and flipping) */}
+            {/* 3D TURNING LEAF */}
             {isFlipping && (
               <motion.div
                 initial={{ rotateY: flipDirection === "next" ? 0 : -180 }}
                 animate={{ rotateY: flipDirection === "next" ? -180 : 0 }}
-                transition={{ duration: 0.55, ease: [0.25, 1, 0.5, 1] }}
-                style={{
-                  transformOrigin: "left center",
-                  transformStyle: "preserve-3d"
-                }}
-                className="absolute inset-2 sm:inset-3 z-30 pointer-events-none rounded-xl bg-[#f5efde] border-l-2 border-[#d6c7b0] shadow-2xl"
+                transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                style={{ transformOrigin: "left center", transformStyle: "preserve-3d" }}
+                className="absolute inset-2 sm:inset-3 z-30 pointer-events-none rounded-xl shadow-2xl"
               >
-                {/* Front side of flipping paper */}
-                <div
-                  className="absolute inset-0 p-6 flex flex-col justify-between"
-                  style={{ backfaceVisibility: "hidden" }}
-                >
-                  <div className="text-[10px] font-mono uppercase text-[#7c6d5b]">
-                    Turning Page...
-                  </div>
-                  <div className="text-center font-mono text-xs text-[#8c7e6c]">
-                    SURYA M. // DEV ARCHIVE
-                  </div>
+                <div className="absolute inset-0 p-6 flex flex-col justify-between rounded-xl"
+                     style={{ background: "#f5efde", backfaceVisibility: "hidden" }}>
+                  <div className="text-[10px] font-mono uppercase text-[#7c6d5b]">Turning Page...</div>
+                  <div className="text-center font-mono text-xs text-[#8c7e6c]">SURYA M. // DEV ARCHIVE</div>
                 </div>
-
-                {/* Reverse side of flipping paper */}
-                <div
-                  className="absolute inset-0 p-6 flex flex-col justify-between bg-[#f0e8d6]"
-                  style={{
-                    transform: "rotateY(180deg)",
-                    backfaceVisibility: "hidden"
-                  }}
-                >
-                  <div className="text-[10px] font-mono uppercase text-[#7c6d5b]">
-                    Revealing Section...
-                  </div>
-                  <div className="text-center font-mono text-xs text-[#8c7e6c]">
-                    SURYA M. // DEV ARCHIVE
-                  </div>
+                <div className="absolute inset-0 p-6 flex flex-col justify-between rounded-xl"
+                     style={{ background: "#f0e8d6", transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}>
+                  <div className="text-[10px] font-mono uppercase text-[#7c6d5b]">Revealing Section...</div>
+                  <div className="text-center font-mono text-xs text-[#8c7e6c]">SURYA M. // DEV ARCHIVE</div>
                 </div>
               </motion.div>
             )}
 
-            {/* PHYSICAL HARDCOVER FRONT (Rotates around left spine: 0deg -> -180deg) */}
+            {/* PHYSICAL HARDCOVER FRONT COVER */}
             <motion.div
               initial={{ rotateY: 0 }}
               animate={{ rotateY: isCoverOpen ? -180 : 0 }}
-              transition={{
-                duration: 0.65,
-                ease: [0.25, 1, 0.5, 1]
-              }}
+              transition={{ duration: 0.70, ease: [0.25, 1, 0.5, 1] }}
               style={{
                 backgroundColor: currentBookMeta.color,
                 transformOrigin: "left center",
                 transformStyle: "preserve-3d",
-                backfaceVisibility: "hidden"
+                backfaceVisibility: "hidden",
+                borderRadius: "12px",
+                border: "2px solid rgba(0,0,0,0.25)",
+                padding: "2rem",
+                position: "absolute",
+                inset: 0,
+                zIndex: 40,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                pointerEvents: "none",
+                boxShadow: "inset 0 0 60px rgba(0,0,0,0.12)"
               }}
-              className="absolute inset-0 z-40 rounded-xl border-2 border-[#1c120c] flex flex-col justify-between p-8 pointer-events-none shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-black/20 pb-3">
-                <span className="font-mono text-xs font-bold uppercase tracking-widest text-black/60">
+              {/* Cover top bar */}
+              <div className="flex items-center justify-between border-b border-black/15 pb-4">
+                <span className="font-mono text-xs font-bold uppercase tracking-widest text-black/55">
                   {currentBookMeta.category}
                 </span>
-                <span className="font-mono text-xs font-bold text-black/60">
+                <span className="font-mono text-xs font-bold text-black/50 px-2 py-0.5 rounded border border-black/15">
                   VOL. {currentBookMeta.index}
                 </span>
               </div>
 
-              <div className="text-center my-auto space-y-2">
-                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-black/85 drop-shadow-sm">
+              {/* Cover main text */}
+              <div className="text-center space-y-3 my-auto">
+                <div className="inline-block mb-2 opacity-25">
+                  <div className="w-12 h-0.5 bg-black mx-auto" />
+                </div>
+                <h2
+                  className="font-black uppercase tracking-tight drop-shadow-sm leading-none"
+                  style={{ fontSize: "clamp(2.2rem, 8vw, 4rem)", color: "rgba(0,0,0,0.82)" }}
+                >
                   {currentBookMeta.title}
                 </h2>
-                <p className="font-mono text-sm text-black/60 font-semibold">
+                <p className="font-mono text-sm text-black/55 font-semibold tracking-wide">
                   {currentBookMeta.subtitle}
                 </p>
+                <div className="inline-block mt-2 opacity-25">
+                  <div className="w-12 h-0.5 bg-black mx-auto" />
+                </div>
               </div>
 
-              <div className="border-t border-black/20 pt-3 text-center font-mono text-xs text-black/50">
-                SURYA M. — DEVELOPER ARCHIVE // 2026
+              {/* Cover footer */}
+              <div className="border-t border-black/15 pt-4 flex items-center justify-between">
+                <span className="font-mono text-xs text-black/45">SURYA M.</span>
+                <span className="font-mono text-xs text-black/45">DEVELOPER ARCHIVE · 2026</span>
               </div>
             </motion.div>
           </motion.div>

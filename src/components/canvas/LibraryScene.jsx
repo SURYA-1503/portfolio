@@ -16,7 +16,7 @@ import {
 export function LibraryScene({
   activeBookIndex,
   onSelectBook,
-  isLightOn = true,
+  isLightOn = false,
   onToggleLight
 }) {
   const mountRef = useRef(null);
@@ -41,9 +41,9 @@ export function LibraryScene({
     let width = window.innerWidth;
     let height = window.innerHeight;
 
-    // 1. Scene, Camera, Renderer
+    // ─── 1. Scene, Camera, Renderer ───────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#0f121b");
+    scene.background = new THREE.Color("#06070c");
 
     const camera = new THREE.PerspectiveCamera(37, width / height, 0.1, 50);
     camera.position.set(0.08, 0.32, 4.45);
@@ -59,11 +59,11 @@ export function LibraryScene({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 0.80; // Start dim (lights OFF)
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // 2. Shared Textures & Materials
+    // ─── 2. Shared Textures & Materials ───────────────────────────────────
     const woodTexture = generateWoodTexture();
     const woodMaterial = new THREE.MeshStandardMaterial({
       map: woodTexture,
@@ -79,15 +79,15 @@ export function LibraryScene({
       metalness: 0.02
     });
 
-    // 3. Lighting
-    const ambientLight = new THREE.AmbientLight(0x28324a, 1.5);
+    // ─── 3. Lighting — initial state: lights OFF (nighttime atmosphere) ───
+    const ambientLight = new THREE.AmbientLight(0x1a2340, 0.75);
     scene.add(ambientLight);
 
     const lampX = 0.48;
     const lampY = 1.45;
     const lampZ = 0.58;
 
-    const lampLight = new THREE.PointLight(0xffe2b0, 4.2, 6.0, 1.2);
+    const lampLight = new THREE.PointLight(0xffe2b0, 0.3, 6.0, 1.2);
     lampLight.position.set(lampX, lampY, lampZ);
     lampLight.castShadow = true;
     lampLight.shadow.mapSize.width = 1024;
@@ -95,23 +95,31 @@ export function LibraryScene({
     lampLight.shadow.bias = -0.001;
     scene.add(lampLight);
 
-    const lampSpot = new THREE.SpotLight(0xffe2b0, 5.2, 6.0, Math.PI / 3.0, 0.55, 1.2);
+    const lampSpot = new THREE.SpotLight(0xffe2b0, 0.4, 6.0, Math.PI / 3.0, 0.55, 1.2);
     lampSpot.position.set(lampX, lampY, lampZ);
     lampSpot.target.position.set(lampX, -0.35, 0);
     scene.add(lampSpot);
     scene.add(lampSpot.target);
 
-    const windowMoonLight = new THREE.DirectionalLight(0xa5cbf5, 1.2);
+    // Always-on subtle moonlight (keeps scene readable when lights off)
+    const windowMoonLight = new THREE.DirectionalLight(0xa5cbf5, 1.4);
     windowMoonLight.position.set(-3.2, 1.5, -0.2);
     windowMoonLight.target.position.set(0, 0, 0);
     scene.add(windowMoonLight);
     scene.add(windowMoonLight.target);
 
-    const fillLight = new THREE.PointLight(0x5a3520, 0.8, 4.5);
+    // Rim light for books (always on, slightly dim — ensures titles readable)
+    const rimLight = new THREE.DirectionalLight(0xc8d8ff, 0.55);
+    rimLight.position.set(0, 0.5, 2.5);
+    rimLight.target.position.set(0, 0, 0);
+    scene.add(rimLight);
+    scene.add(rimLight.target);
+
+    const fillLight = new THREE.PointLight(0x5a3520, 0.3, 4.5);
     fillLight.position.set(0, -1.2, 1.2);
     scene.add(fillLight);
 
-    // 4. Room Elements: Left Window (Night Sky, Moon & Mountains)
+    // ─── 4. Left Window (Night Sky, Moon & Mountains) ─────────────────────
     const windowGroup = new THREE.Group();
     windowGroup.position.set(-2.65, 0.5, -0.45);
 
@@ -141,7 +149,7 @@ export function LibraryScene({
     windowGroup.add(winLeft, winRight, winTop, winBottom, mullionV, mullionH1, mullionH2);
     scene.add(windowGroup);
 
-    // 5. Wooden Bookshelf Structure
+    // ─── 5. Wooden Bookshelf Structure ────────────────────────────────────
     const shelfGroup = new THREE.Group();
     shelfGroup.position.set(0.52, 0.15, 0);
 
@@ -187,12 +195,30 @@ export function LibraryScene({
     shelfGroup.add(midShelf, botShelf);
     scene.add(shelfGroup);
 
-    // 6. The 9 Interactive Books and Static Hitboxes
+    // ─── 6. The 9 Interactive Books — Natural realistic arrangement ────────
     const bookMeshes = [];
     const hitboxMeshes = [];
-    const bookWidth = 0.195;
+
+    const bookWidth  = 0.195;
     const bookHeight = 0.94;
-    const bookDepth = 0.54;
+    const bookDepth  = 0.54;
+
+    // Realistic natural tilts: each book has a slight rotation
+    // Some lean left, some right, some perfectly upright — like a real shelf
+    const naturalTilts = [
+      0.00,   // 01 upright
+      0.02,   // 02 tiny lean right
+     -0.03,   // 03 lean left
+      0.00,   // 04 upright
+      0.025,  // 05 lean right
+     -0.015,  // 06 lean left
+      0.01,   // 07 upright
+      0.03,   // 08 lean right
+      0.00    // 09 upright
+    ];
+
+    // Gap between books — reduced to 0.008 for tight library packing
+    const bookGap = 0.008;
     const startX = -1.90;
 
     BOOKS_CATALOG.forEach((book, i) => {
@@ -205,36 +231,42 @@ export function LibraryScene({
       });
 
       const coverTex = generateBookCoverTexture(book.color, book.title);
+
+      // ★ FIX: Use separate materials per face.
+      // The spine face gets spineMat; front/back/top/bottom get coverMat.
+      // No dark overlay, no opacity reduction — pure colors as designed.
       const coverMat = new THREE.MeshStandardMaterial({
         map: coverTex,
-        roughness: 0.70,
-        metalness: 0.05
+        roughness: 0.72,
+        metalness: 0.04
       });
-
       const spineMat = new THREE.MeshStandardMaterial({
         map: spineTex,
         roughness: 0.65,
         metalness: 0.06
       });
 
+      // THREE.BoxGeometry face order: +X, -X, +Y, -Y, +Z(front), -Z(back/spine)
+      // Book spine faces the camera (+Z) = index 4
       const materials = [
-        coverMat,
-        coverMat,
-        pagesMaterial,
-        pagesMaterial,
-        spineMat, // Front Spine
-        pagesMaterial
+        coverMat,     // right face (+X)
+        spineMat,     // left face = spine facing camera (-X? depends on orientation)
+        pagesMaterial,// top
+        pagesMaterial,// bottom
+        spineMat,     // front (+Z) — spine visible from viewer
+        coverMat      // back (-Z)
       ];
 
       const hVariation = bookHeight + Math.sin(i * 1.7) * 0.035;
       const geo = new THREE.BoxGeometry(bookWidth, hVariation, bookDepth);
       const mesh = new THREE.Mesh(geo, materials);
 
-      const posX = startX + i * (bookWidth + 0.026);
+      const posX = startX + i * (bookWidth + bookGap);
       const posY = -0.42 + hVariation / 2 + 0.04;
       const posZ = 0.0;
 
       mesh.position.set(posX, posY, posZ);
+      mesh.rotation.z = naturalTilts[i] || 0;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
@@ -244,18 +276,18 @@ export function LibraryScene({
         baseX: posX,
         baseY: posY,
         baseZ: posZ,
+        baseRotZ: naturalTilts[i] || 0,
         targetY: posY,
         targetZ: posZ,
         targetRotX: 0,
         targetRotY: 0,
-        targetRotZ: 0
+        targetRotZ: naturalTilts[i] || 0
       };
 
       shelfGroup.add(mesh);
       bookMeshes.push(mesh);
 
-      // STATIC INVISIBLE RAYCAST HITBOX (Placed at the resting slot)
-      // This completely eliminates hover jitter, oscillation, and edge-flickering!
+      // Static invisible raycast hitbox — prevents hover chatter
       const hitGeo = new THREE.BoxGeometry(bookWidth + 0.024, hVariation + 0.08, bookDepth * 1.4);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
       const hitMesh = new THREE.Mesh(hitGeo, hitMat);
@@ -265,14 +297,11 @@ export function LibraryScene({
       hitboxMeshes.push(hitMesh);
     });
 
-    // 7. Right Side Middle Shelf Accessories
+    // ─── 7. Right Side Middle Shelf Accessories ────────────────────────────
     const artTex = generateArtFrameTexture();
     const artFrameGeo = new THREE.BoxGeometry(0.38, 0.48, 0.03);
     const artFrameMat = [
-      woodMaterial,
-      woodMaterial,
-      woodMaterial,
-      woodMaterial,
+      woodMaterial, woodMaterial, woodMaterial, woodMaterial,
       new THREE.MeshStandardMaterial({ map: artTex, roughness: 0.38 }),
       woodMaterial
     ];
@@ -304,7 +333,7 @@ export function LibraryScene({
       shelfGroup.add(sMesh);
     });
 
-    // 8. Top Shelf Accessories: Real-time Analog Clock & Ceramic Vase
+    // ─── 8. Top Shelf — Analog Clock & Ceramic Vase ───────────────────────
     const clockGroup = new THREE.Group();
     clockGroup.position.set(1.85, 1.75, -0.1);
 
@@ -320,6 +349,13 @@ export function LibraryScene({
     clockBody.castShadow = true;
     clockGroup.add(clockBody);
 
+    // Clock frame rim
+    const clockFrameGeo = new THREE.TorusGeometry(0.24, 0.025, 8, 32);
+    const clockFrameMat = new THREE.MeshStandardMaterial({ color: 0x5a3a24, roughness: 0.4, metalness: 0.3 });
+    const clockFrame = new THREE.Mesh(clockFrameGeo, clockFrameMat);
+    clockFrame.rotation.x = Math.PI / 2;
+    clockGroup.add(clockFrame);
+
     const handMat = new THREE.MeshBasicMaterial({ color: 0x1f1914 });
     const secMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c });
 
@@ -330,9 +366,16 @@ export function LibraryScene({
     const secHand = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.18, 0.005), secMat);
     secHand.position.z = 0.039;
 
-    clockGroup.add(hourHand, minHand, secHand);
+    // Center pivot dot
+    const pivotGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.01, 16);
+    pivotGeo.rotateX(Math.PI / 2);
+    const pivotMesh = new THREE.Mesh(pivotGeo, new THREE.MeshBasicMaterial({ color: 0x1f1914 }));
+    pivotMesh.position.z = 0.042;
+
+    clockGroup.add(hourHand, minHand, secHand, pivotMesh);
     shelfGroup.add(clockGroup);
 
+    // Vase with dried branches
     const vaseGroup = new THREE.Group();
     vaseGroup.position.set(1.25, 1.55, -0.15);
     const vaseGeo = new THREE.CylinderGeometry(0.06, 0.1, 0.32, 16);
@@ -352,7 +395,29 @@ export function LibraryScene({
     }
     shelfGroup.add(vaseGroup);
 
-    // 9. Ceiling Accessories: Hanging Lamp & Mobile
+    // ─── 9. Light Switch on the left wall of bookshelf ────────────────────
+    // A small physical toggle switch that the user can click to toggle lighting
+    const switchPanelGeo = new THREE.BoxGeometry(0.11, 0.17, 0.025);
+    const switchPanelMat = new THREE.MeshStandardMaterial({ color: 0xd4c8b4, roughness: 0.5, metalness: 0.0 });
+    const switchPanel = new THREE.Mesh(switchPanelGeo, switchPanelMat);
+    switchPanel.position.set(-2.42, 0.78, 0.22);
+    scene.add(switchPanel);
+
+    const switchToggleGeo = new THREE.BoxGeometry(0.045, 0.072, 0.03);
+    const switchToggleMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e4, roughness: 0.3, metalness: 0.1 });
+    const switchToggle = new THREE.Mesh(switchToggleGeo, switchToggleMat);
+    switchToggle.position.set(-2.42, 0.785, 0.24);
+    switchToggle.userData = { isLampSwitch: true };
+    scene.add(switchToggle);
+
+    // Small label above the switch
+    const switchLabelGeo = new THREE.BoxGeometry(0.08, 0.02, 0.005);
+    const switchLabelMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    const switchLabel = new THREE.Mesh(switchLabelGeo, switchLabelMat);
+    switchLabel.position.set(-2.42, 0.86, 0.23);
+    scene.add(switchLabel);
+
+    // ─── 10. Ceiling: Hanging Lamp & Mobile ───────────────────────────────
     const lampCordGeo = new THREE.CylinderGeometry(0.004, 0.004, 1.2, 8);
     const lampCordMat = new THREE.MeshBasicMaterial({ color: 0x1f1f1f });
     const lampCord = new THREE.Mesh(lampCordGeo, lampCordMat);
@@ -380,6 +445,7 @@ export function LibraryScene({
 
     scene.add(lampCord, shadeMesh, pullString, beadMesh);
 
+    // ─── 11. Hanging Mobile ───────────────────────────────────────────────
     const mobileGroup = new THREE.Group();
     mobileGroup.position.set(-0.35, 2.1, 0.2);
 
@@ -387,22 +453,31 @@ export function LibraryScene({
     mobileWire1.rotation.z = Math.PI / 2;
     mobileGroup.add(mobileWire1);
 
-    const discOrange = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.01, 24), new THREE.MeshBasicMaterial({ color: 0xe06642 }));
+    const discOrange = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 0.01, 24),
+      new THREE.MeshBasicMaterial({ color: 0xe06642 })
+    );
     discOrange.position.set(-0.25, -0.15, 0);
     discOrange.rotation.x = Math.PI / 2;
 
-    const discWhite = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.01, 24), new THREE.MeshBasicMaterial({ color: 0xf5f5f5 }));
+    const discWhite = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 0.01, 24),
+      new THREE.MeshBasicMaterial({ color: 0xf5f5f5 })
+    );
     discWhite.position.set(0.05, -0.22, 0);
     discWhite.rotation.x = Math.PI / 2;
 
-    const discDark = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.01, 24), new THREE.MeshBasicMaterial({ color: 0x334155 }));
+    const discDark = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.01, 24),
+      new THREE.MeshBasicMaterial({ color: 0x334155 })
+    );
     discDark.position.set(0.24, -0.12, 0);
     discDark.rotation.x = Math.PI / 2;
 
     mobileGroup.add(discOrange, discWhite, discDark);
     scene.add(mobileGroup);
 
-    // 10. Bottom Shelf Vintage Leather Books
+    // ─── 12. Bottom Shelf Vintage Leather Books ────────────────────────────
     const leatherColors = [0x221c17, 0x1b2326, 0x2b1e16, 0x18201a, 0x281919, 0x1f1b29];
     for (let b = 0; b < 18; b++) {
       const lbH = 0.72 + Math.sin(b * 1.8) * 0.06;
@@ -414,35 +489,32 @@ export function LibraryScene({
       });
       const lbMesh = new THREE.Mesh(lbGeo, lbMat);
       lbMesh.position.set(-1.8 + b * 0.175, -1.35 + lbH / 2 + 0.04, 0.0);
+      lbMesh.rotation.z = (Math.sin(b * 2.3) * 0.025); // subtle natural lean
       shelfGroup.add(lbMesh);
     }
 
-    // 11. High-Performance Raycasting (Zero DOM recalculations!)
+    // ─── 13. Raycasting & Pointer ─────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2(-100, -100);
     let targetCameraX = 0.08;
     let targetCameraY = 0.32;
 
     const handlePointerMove = (e) => {
-      // Use cached width & height (ZERO getBoundingClientRect reflow!)
       pointer.x = (e.clientX / width) * 2 - 1;
       pointer.y = -(e.clientY / height) * 2 + 1;
-
-      targetCameraX = 0.08 + pointer.x * 0.16;
-      targetCameraY = 0.32 + pointer.y * 0.08;
+      targetCameraX = 0.08 + pointer.x * 0.14;
+      targetCameraY = 0.32 + pointer.y * 0.07;
     };
 
+    // Transition manager (book extraction / return)
     let currentTransition = null;
     let lastActiveIndex = null;
 
     const handleClick = () => {
-      // Don't register clicks if a book is already being extracted, returning, or open
-      if (currentTransition || (activeBookIndexRef.current != null)) {
-        return;
-      }
+      if (currentTransition || (activeBookIndexRef.current != null)) return;
 
       raycaster.setFromCamera(pointer, camera);
-      const allTargets = [...hitboxMeshes, beadMesh];
+      const allTargets = [...hitboxMeshes, beadMesh, switchToggle];
       const intersects = raycaster.intersectObjects(allTargets);
 
       if (intersects.length > 0) {
@@ -451,50 +523,57 @@ export function LibraryScene({
           onToggleLightRef.current?.();
         } else if (clickedObj.userData.index !== undefined) {
           const idx = clickedObj.userData.index;
-          // Realistic physical book extraction sequence
           currentTransition = {
             type: "extracting",
             index: idx,
-            startTime: clock.getElapsedTime(),
+            startTime: null, // set in animate loop
             duration: 0.72
           };
         }
       }
     };
 
+    // Cursor change for interactable objects
+    const handlePointerDown = () => {};
+
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("click", handleClick);
 
-    // 12. 60–120fps Animation Loop with Fluid Spring-Damped Lerp
-    let clock = new THREE.Clock();
+    // ─── 14. Animation Loop ───────────────────────────────────────────────
+    const clock = new THREE.Clock();
+    // Track cursor hover for DOM cursor style
+    let lastHoverIdx = null;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Lighting Lerp
-      const currentLightOn = isLightOnRef.current;
-      const targetLampInt = currentLightOn ? 4.2 : 0.6;
-      const targetSpotInt = currentLightOn ? 5.2 : 0.5;
-      const targetAmbInt = currentLightOn ? 1.5 : 0.85;
-      const targetExposure = currentLightOn ? 1.25 : 0.95;
-      const targetBg = currentLightOn ? new THREE.Color("#0f121b") : new THREE.Color("#06070b");
+      // Lighting lerp — smooth ON/OFF transition
+      const lit = isLightOnRef.current;
+      const targetLampInt  = lit ? 4.4 : 0.3;
+      const targetSpotInt  = lit ? 5.4 : 0.4;
+      const targetAmbInt   = lit ? 1.6 : 0.75;
+      const targetExposure = lit ? 1.25 : 0.80;
+      const targetBg       = lit ? new THREE.Color("#0f121b") : new THREE.Color("#06070c");
 
-      lampLight.intensity += (targetLampInt - lampLight.intensity) * 0.12;
-      lampSpot.intensity += (targetSpotInt - lampSpot.intensity) * 0.12;
-      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * 0.12;
-      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 0.12;
-      scene.background.lerp(targetBg, 0.12);
+      lampLight.intensity  += (targetLampInt  - lampLight.intensity)  * 0.09;
+      lampSpot.intensity   += (targetSpotInt  - lampSpot.intensity)   * 0.09;
+      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * 0.09;
+      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 0.09;
+      scene.background.lerp(targetBg, 0.09);
 
-      // Camera Parallax
-      camera.position.x += (targetCameraX - camera.position.x) * 0.06;
-      camera.position.y += (targetCameraY - camera.position.y) * 0.06;
+      // Animate light switch toggle visual
+      const switchTargetY = lit ? 0.80 : 0.775;
+      switchToggle.position.y += (switchTargetY - switchToggle.position.y) * 0.14;
+
+      // Camera parallax
+      camera.position.x += (targetCameraX - camera.position.x) * 0.055;
+      camera.position.y += (targetCameraY - camera.position.y) * 0.055;
       camera.lookAt(0.08, 0.12, 0);
 
-      // Check if open book was closed by user
+      // Detect book close (user closed the reader)
       const currentActive = activeBookIndexRef.current;
-      if (lastActiveIndex !== null && (currentActive == null) && !currentTransition) {
-        // Book was just closed! Play physical return back to cupboard slot
+      if (lastActiveIndex !== null && currentActive == null && !currentTransition) {
         const idx = lastActiveIndex;
         const mesh = bookMeshes[idx];
         if (mesh) {
@@ -505,19 +584,22 @@ export function LibraryScene({
           currentTransition = {
             type: "returning",
             index: idx,
-            startTime: clock.getElapsedTime(),
+            startTime: elapsedTime,
             duration: 0.65
           };
         }
       }
       lastActiveIndex = currentActive;
 
-      // Handle ongoing physical extraction / return transition
-      if (currentTransition) {
-        const now = clock.getElapsedTime();
-        const elapsed = now - currentTransition.startTime;
-        const rawT = Math.min(Math.max(elapsed / currentTransition.duration, 0), 1);
+      // If transition just created by click handler, set startTime now
+      if (currentTransition && currentTransition.startTime === null) {
+        currentTransition.startTime = elapsedTime;
+      }
 
+      // Execute transition
+      if (currentTransition && currentTransition.startTime !== null) {
+        const elapsed = elapsedTime - currentTransition.startTime;
+        const rawT = Math.min(Math.max(elapsed / currentTransition.duration, 0), 1);
         const idx = currentTransition.index;
         const mesh = bookMeshes[idx];
 
@@ -525,25 +607,22 @@ export function LibraryScene({
           const targetCenterX = -0.44;
           const targetCenterY = -0.03;
           const targetCenterZ = camera.position.z - 1.75;
-          const targetRotY = -Math.PI / 2;
+          const targetRotY    = -Math.PI / 2;
 
           if (currentTransition.type === "extracting") {
-            // Cubic ease-in-out
-            const ease = rawT < 0.5 ? 4 * rawT * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
+            const ease = rawT < 0.5
+              ? 4 * rawT * rawT * rawT
+              : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
 
-            // 1. Pull forward out of the cupboard shelf
-            const pullZ = rawT < 0.35 
-              ? mesh.userData.baseZ + (rawT / 0.35) * 1.5 
+            const pullZ = rawT < 0.35
+              ? mesh.userData.baseZ + (rawT / 0.35) * 1.5
               : (mesh.userData.baseZ + 1.5) + ((rawT - 0.35) / 0.65) * (targetCenterZ - (mesh.userData.baseZ + 1.5));
 
-            // 2. Lift up and glide to center
-            const liftY = mesh.userData.baseY + Math.sin(rawT * Math.PI) * 0.16 + (targetCenterY - mesh.userData.baseY) * ease;
+            const liftY = mesh.userData.baseY + Math.sin(rawT * Math.PI) * 0.18 + (targetCenterY - mesh.userData.baseY) * ease;
             const moveX = mesh.userData.baseX + (targetCenterX - mesh.userData.baseX) * ease;
-
-            // 3. Rotate so front cover faces camera
-            const rotY = targetRotY * ease;
-            const rotX = Math.sin(rawT * Math.PI) * 0.14;
-            const rotZ = -Math.sin(rawT * Math.PI) * 0.05;
+            const rotY  = targetRotY * ease;
+            const rotX  = Math.sin(rawT * Math.PI) * 0.14;
+            const rotZ  = -Math.sin(rawT * Math.PI) * 0.05;
 
             mesh.position.set(moveX, liftY, pullZ);
             mesh.rotation.set(rotX, rotY, rotZ);
@@ -554,118 +633,130 @@ export function LibraryScene({
               onSelectBookRef.current?.(idx);
             }
           } else if (currentTransition.type === "returning") {
-            // Smooth cubic ease-out
             const returnEase = 1 - Math.pow(1 - rawT, 3);
 
             const moveX = targetCenterX + (mesh.userData.baseX - targetCenterX) * returnEase;
-            const moveY = targetCenterY + (mesh.userData.baseY - targetCenterY) * returnEase + Math.sin((1 - rawT) * Math.PI) * 0.10;
+            const moveY = targetCenterY + (mesh.userData.baseY - targetCenterY) * returnEase
+              + Math.sin((1 - rawT) * Math.PI) * 0.10;
             const moveZ = targetCenterZ + (mesh.userData.baseZ - targetCenterZ) * returnEase;
-            const rotY = targetRotY * (1 - returnEase);
-            const rotX = Math.sin((1 - rawT) * Math.PI) * 0.08;
-            const rotZ = -Math.sin((1 - rawT) * Math.PI) * 0.04;
+            const rotY  = targetRotY * (1 - returnEase);
+            const rotX  = Math.sin((1 - rawT) * Math.PI) * 0.08;
+            const rotZ  = mesh.userData.baseRotZ * returnEase + (-Math.sin((1 - rawT) * Math.PI) * 0.04) * (1 - returnEase);
 
             mesh.position.set(moveX, moveY, moveZ);
             mesh.rotation.set(rotX, rotY, rotZ);
 
             if (rawT >= 1) {
               mesh.position.set(mesh.userData.baseX, mesh.userData.baseY, mesh.userData.baseZ);
-              mesh.rotation.set(0, 0, 0);
-              mesh.userData.targetZ = mesh.userData.baseZ;
-              mesh.userData.targetY = mesh.userData.baseY;
+              mesh.rotation.set(0, 0, mesh.userData.baseRotZ);
+              mesh.userData.targetZ    = mesh.userData.baseZ;
+              mesh.userData.targetY    = mesh.userData.baseY;
               mesh.userData.targetRotX = 0;
               mesh.userData.targetRotY = 0;
-              mesh.userData.targetRotZ = 0;
+              mesh.userData.targetRotZ = mesh.userData.baseRotZ;
               currentTransition = null;
             }
           }
         }
       }
 
-      // Raycast against STATIC HITBOXES (Only when no book is active or transitioning)
+      // ★ Hover detection — against static hitboxes only
       let activeHoverIdx = null;
-      if (!currentTransition && activeBookIndexRef.current === null) {
+      if (!currentTransition && activeBookIndexRef.current == null) {
         raycaster.setFromCamera(pointer, camera);
+        // Also check if hovering the lamp bead or switch toggle for cursor
+        const switchTargets = [beadMesh, switchToggle];
+        const switchHit = raycaster.intersectObjects(switchTargets);
         const hitIntersects = raycaster.intersectObjects(hitboxMeshes);
+
         if (hitIntersects.length > 0) {
           activeHoverIdx = hitIntersects[0].object.userData.index;
         }
+
+        // Update DOM cursor
+        const isHoveringInteractable = switchHit.length > 0 || hitIntersects.length > 0;
+        renderer.domElement.style.cursor = isHoveringInteractable ? "pointer" : "default";
+      } else {
+        renderer.domElement.style.cursor = "default";
       }
 
-      // Smooth 3D Book Lift + Subtle Tilt
+      // ★ Smooth Book Hover — no dark overlays, only lift + subtle tilt
       bookMeshes.forEach((mesh) => {
-        if (currentTransition && mesh.userData.index === currentTransition.index) {
-          // Handled above in transition
-          return;
-        }
-
-        if (currentTransition || activeBookIndexRef.current !== null) {
-          // Keep all remaining books at their resting positions while reading or transitioning
-          mesh.position.z += (mesh.userData.baseZ - mesh.position.z) * 0.16;
-          mesh.position.y += (mesh.userData.baseY - mesh.position.y) * 0.16;
-          mesh.rotation.x += (0 - mesh.rotation.x) * 0.16;
-          mesh.rotation.y += (0 - mesh.rotation.y) * 0.16;
-          mesh.rotation.z += (0 - mesh.rotation.z) * 0.16;
+        if (currentTransition && mesh.userData.index === currentTransition.index) return;
+        if (currentTransition || activeBookIndexRef.current != null) {
+          // All books: gently return to rest
+          mesh.position.z += (mesh.userData.baseZ - mesh.position.z) * 0.14;
+          mesh.position.y += (mesh.userData.baseY - mesh.position.y) * 0.14;
+          mesh.rotation.x += (0 - mesh.rotation.x) * 0.14;
+          mesh.rotation.y += (0 - mesh.rotation.y) * 0.14;
+          mesh.rotation.z += (mesh.userData.baseRotZ - mesh.rotation.z) * 0.14;
           return;
         }
 
         const isHovered = mesh.userData.index === activeHoverIdx;
 
         if (isHovered) {
-          mesh.userData.targetZ = 0.36; // Lifts forward out of shelf
-          mesh.userData.targetY = mesh.userData.baseY + 0.045; // Lifts slightly
+          // Lift forward (z), slight up (y), gentle 3D tilt based on mouse position
+          mesh.userData.targetZ = 0.34;
+          mesh.userData.targetY = mesh.userData.baseY + 0.042;
 
-          // Gentle continuous 3D tilt
-          const tiltFactorX = (pointer.x - 0.08) * 0.10;
-          const tiltFactorY = -(pointer.y - 0.20) * 0.06;
-          mesh.userData.targetRotY = tiltFactorX;
-          mesh.userData.targetRotX = tiltFactorY;
-          mesh.userData.targetRotZ = -tiltFactorX * 0.3;
+          // Tilt relative to this book's x position (not global pointer)
+          const bookScreenX = mesh.userData.baseX / 2.2;
+          const tiltFactorY = (pointer.x - bookScreenX) * 0.08;
+          const tiltFactorX = -(pointer.y) * 0.05;
+          mesh.userData.targetRotY = tiltFactorY;
+          mesh.userData.targetRotX = tiltFactorX;
+          mesh.userData.targetRotZ = mesh.userData.baseRotZ;
         } else {
-          mesh.userData.targetZ = mesh.userData.baseZ;
-          mesh.userData.targetY = mesh.userData.baseY;
+          mesh.userData.targetZ    = mesh.userData.baseZ;
+          mesh.userData.targetY    = mesh.userData.baseY;
           mesh.userData.targetRotY = 0;
           mesh.userData.targetRotX = 0;
-          mesh.userData.targetRotZ = 0;
+          mesh.userData.targetRotZ = mesh.userData.baseRotZ;
         }
 
-        // Spring-like lerp interpolation (Natural, responsive, 120fps smooth!)
-        mesh.position.z += (mesh.userData.targetZ - mesh.position.z) * 0.16;
-        mesh.position.y += (mesh.userData.targetY - mesh.position.y) * 0.16;
-        mesh.rotation.x += (mesh.userData.targetRotX - mesh.rotation.x) * 0.16;
-        mesh.rotation.y += (mesh.userData.targetRotY - mesh.rotation.y) * 0.16;
-        mesh.rotation.z += (mesh.userData.targetRotZ - mesh.rotation.z) * 0.16;
+        // Spring-damped lerp — smooth and natural
+        const lerpFactor = 0.15;
+        mesh.position.z  += (mesh.userData.targetZ    - mesh.position.z)  * lerpFactor;
+        mesh.position.y  += (mesh.userData.targetY    - mesh.position.y)  * lerpFactor;
+        mesh.rotation.x  += (mesh.userData.targetRotX - mesh.rotation.x)  * lerpFactor;
+        mesh.rotation.y  += (mesh.userData.targetRotY - mesh.rotation.y)  * lerpFactor;
+        mesh.rotation.z  += (mesh.userData.targetRotZ - mesh.rotation.z)  * lerpFactor;
       });
 
-      // Rotating Clock Hands in real-time
+      // ─── Clock hands ────────────────────────────────────────────────────
       const now = new Date();
       const sec = now.getSeconds() + now.getMilliseconds() / 1000;
       const min = now.getMinutes() + sec / 60;
-      const hr = (now.getHours() % 12) + min / 60;
+      const hr  = (now.getHours() % 12) + min / 60;
 
-      hourHand.rotation.z = -hr * ((Math.PI * 2) / 12);
-      minHand.rotation.z = -min * ((Math.PI * 2) / 60);
-      secHand.rotation.z = -sec * ((Math.PI * 2) / 60);
+      hourHand.rotation.z = -hr  * ((Math.PI * 2) / 12);
+      minHand.rotation.z  = -min * ((Math.PI * 2) / 60);
+      secHand.rotation.z  = -sec * ((Math.PI * 2) / 60);
 
-      // Mobile gentle sway
-      mobileGroup.rotation.y = Math.sin(elapsedTime * 0.7) * 0.14;
-      mobileGroup.rotation.z = Math.cos(elapsedTime * 0.5) * 0.03;
+      // ─── Mobile gentle sway ─────────────────────────────────────────────
+      mobileGroup.rotation.y = Math.sin(elapsedTime * 0.7)  * 0.14;
+      mobileGroup.rotation.z = Math.cos(elapsedTime * 0.5)  * 0.03;
 
       renderer.render(scene, camera);
     };
 
     animate();
 
-    // 13. Responsive Resize
+    // ─── 15. Responsive Resize ────────────────────────────────────────────
     const handleResize = () => {
-      width = window.innerWidth;
+      width  = window.innerWidth;
       height = window.innerHeight;
       camera.aspect = width / height;
 
-      if (width < 768) {
-        camera.position.z = 5.8;
+      if (width < 640) {
+        camera.fov = 50;
+        camera.position.z = 6.4;
       } else if (width < 1024) {
-        camera.position.z = 5.0;
+        camera.fov = 42;
+        camera.position.z = 5.2;
       } else {
+        camera.fov = 37;
         camera.position.z = 4.45;
       }
 
@@ -676,6 +767,7 @@ export function LibraryScene({
     window.addEventListener("resize", handleResize);
     handleResize();
 
+    // ─── Cleanup ──────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("pointermove", handlePointerMove);
@@ -687,7 +779,6 @@ export function LibraryScene({
         if (Array.isArray(m.material)) m.material.forEach((mat) => mat.dispose());
         else m.material.dispose();
       });
-
       hitboxMeshes.forEach((h) => {
         h.geometry.dispose();
         h.material.dispose();
@@ -698,7 +789,13 @@ export function LibraryScene({
         container.removeChild(renderer.domElement);
       }
     };
-  }, []); // Run ONCE on mount, NEVER tears down!
+  }, []); // Run ONCE — no teardown on prop changes
 
-  return <div ref={mountRef} className="absolute inset-0 w-full h-full overflow-hidden" />;
+  return (
+    <div
+      ref={mountRef}
+      className="absolute inset-0 w-full h-full overflow-hidden"
+      style={{ cursor: "default" }}
+    />
+  );
 }

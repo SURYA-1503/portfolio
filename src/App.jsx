@@ -1,29 +1,27 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { LibraryScene } from "./components/canvas/LibraryScene";
 import { LibraryOverlay } from "./components/library/LibraryOverlay";
 import { PhysicalBookReader } from "./components/books/PhysicalBookReader";
-import { CustomCursor } from "./components/ui/CustomCursor";
+
+// ★ Determine initial light state from local time:
+//    6am–9pm = lights ON, otherwise lights OFF for night atmosphere
+function getInitialLightState() {
+  const hour = new Date().getHours();
+  return hour >= 6 && hour < 21;
+}
 
 function App() {
   const [activeBookIndex, setActiveBookIndex] = useState(null);
-  const [isLightOn, setIsLightOn] = useState(true);
+  const [isLightOn, setIsLightOn] = useState(false); // Start OFF for atmosphere
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
-  // Global Escape key listener to close opened book
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setActiveBookIndex(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Stable callbacks so child components never cause unnecessary re-renders
+  // Stable callbacks — never trigger LibraryScene re-render
   const handleSelectBook = useCallback((idx) => {
     setActiveBookIndex(idx);
+  }, []);
+
+  const handleCloseBook = useCallback(() => {
+    setActiveBookIndex(null);
   }, []);
 
   const handleToggleLight = useCallback(() => {
@@ -34,58 +32,46 @@ function App() {
     setIsAudioPlaying((prev) => !prev);
   }, []);
 
-  // Web Audio ambient drone generator
+  // Web Audio ambient library ambience
   useEffect(() => {
+    if (!isAudioPlaying) return;
+
     let audioCtx = null;
-    let osc1 = null;
-    let osc2 = null;
-    let gainNode = null;
+    let osc1 = null, osc2 = null, gainNode = null;
 
-    if (isAudioPlaying) {
-      try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.035, audioCtx.currentTime);
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0.028, audioCtx.currentTime);
 
-        osc1 = audioCtx.createOscillator();
-        osc1.type = "sine";
-        osc1.frequency.setValueAtTime(110, audioCtx.currentTime);
+      osc1 = audioCtx.createOscillator();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(110, audioCtx.currentTime);
 
-        osc2 = audioCtx.createOscillator();
-        osc2.type = "triangle";
-        osc2.frequency.setValueAtTime(164.81, audioCtx.currentTime);
+      osc2 = audioCtx.createOscillator();
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(164.81, audioCtx.currentTime);
 
-        osc1.connect(gainNode);
-        osc2.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        osc1.start();
-        osc2.start();
-      } catch (err) {
-        console.warn("Web Audio gesture requirement", err);
-      }
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      osc1.start();
+      osc2.start();
+    } catch (err) {
+      console.warn("Web Audio:", err);
     }
 
     return () => {
-      if (osc1) {
-        try { osc1.stop(); } catch (e) {}
-      }
-      if (osc2) {
-        try { osc2.stop(); } catch (e) {}
-      }
-      if (audioCtx) {
-        try { audioCtx.close(); } catch (e) {}
-      }
+      try { osc1?.stop(); } catch {}
+      try { osc2?.stop(); } catch {}
+      try { audioCtx?.close(); } catch {}
     };
   }, [isAudioPlaying]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#07080d] text-[#f3f4f6] select-none">
-      {/* 1. Ultra-Smooth 120fps GPU Custom Cursor */}
-      <CustomCursor />
-
-      {/* 2. Full-Viewport 3D Bookshelf Scene (Decoupled from React render cycle) */}
+    <div className="relative w-screen h-screen overflow-hidden bg-[#06070c] text-[#f3f4f6] select-none">
+      {/* 1. Full-Viewport 3D Bookshelf (Three.js — decoupled from React render cycle) */}
       <LibraryScene
         activeBookIndex={activeBookIndex}
         isLightOn={isLightOn}
@@ -93,7 +79,7 @@ function App() {
         onSelectBook={handleSelectBook}
       />
 
-      {/* 3. Minimalist Overlay (NO top nav links, only light & audio switches) */}
+      {/* 2. UI Overlay — book telemetry + light + audio controls */}
       <LibraryOverlay
         isLightOn={isLightOn}
         onToggleLight={handleToggleLight}
@@ -101,10 +87,10 @@ function App() {
         onToggleAudio={handleToggleAudio}
       />
 
-      {/* 4. Physical 3D Book Reader — single-page layout with cover opening & page flip */}
+      {/* 3. Physical Book Reader — appears when a book is selected */}
       <PhysicalBookReader
         bookIndex={activeBookIndex}
-        onClose={() => setActiveBookIndex(null)}
+        onClose={handleCloseBook}
       />
     </div>
   );
