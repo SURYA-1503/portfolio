@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.portfolio_profile (
   name          TEXT NOT NULL,
   role          TEXT,
   introduction  TEXT,
-  email         TEXT,
+  email         TEXT NOT NULL UNIQUE,
   phone         TEXT,
   github_url    TEXT,
   linkedin_url  TEXT,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.portfolio_profile (
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.portfolio_skills (
   id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  name          TEXT NOT NULL,
+  name          TEXT NOT NULL UNIQUE,
   category_id   TEXT NOT NULL,
   category_title TEXT NOT NULL,
   is_learning   BOOLEAN DEFAULT FALSE,
@@ -122,7 +122,8 @@ CREATE TABLE IF NOT EXISTS public.portfolio_education (
   score         TEXT,
   location      TEXT,
   record_type   TEXT DEFAULT 'Degree',
-  display_order INTEGER DEFAULT 0
+  display_order INTEGER DEFAULT 0,
+  UNIQUE(institution, degree)
 );
 
 -- ─────────────────────────────────────────────
@@ -130,7 +131,7 @@ CREATE TABLE IF NOT EXISTS public.portfolio_education (
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.portfolio_certifications (
   id            UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title         TEXT NOT NULL,
+  title         TEXT NOT NULL UNIQUE,
   issuer        TEXT,
   period        TEXT,
   skills        JSONB DEFAULT '[]',
@@ -323,7 +324,7 @@ ON CONFLICT (slug) DO NOTHING;
 -- ─────────────────────────────────────────────
 INSERT INTO public.portfolio_education (institution, degree, period, score, location, record_type, display_order) VALUES
   ('K.S. Rangasamy College of Technology',       'B.E. Computer Science and Engineering', '2020 – 2024', 'CGPA: 8.12 / 10', 'Tiruchengode, Tamil Nadu', 'Degree',    1),
-  ('Vani Vidhyalaya Matric Higher Secondary School', 'Higher Secondary Certificate (HSC)', '2019 – 2020', 'Percentage: 71.5%', 'Tamil Nadu', 'Schooling', 2),
+  ('Vani Vidhyalaya Matric Higher Secondary School', 'Higher Secondary Certificate (HSC)', '2019 – 2020', 'Percentage: 72.5%', 'Tamil Nadu', 'Schooling', 2),
   ('SKV Matric Higher Secondary School',         'Secondary School Leaving Certificate (SSLC)', '2017 – 2018', 'Percentage: 88.4%', 'Tamil Nadu', 'Schooling', 3)
 ON CONFLICT DO NOTHING;
 

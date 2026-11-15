@@ -105,3 +105,49 @@
 .font-mono-code {
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+/* Classical Literary Typography */
+.font-serif-book {
+  font-family: "Newsreader", "Georgia", "Times New Roman", serif;
+}
+
+.font-display-book {
+  font-family: "Cinzel", "Playfair Display", "Georgia", serif;
+}
+
+/* Authentic Archival Paper Texture */
+.paper-parchment {
+  background-color: #faf6ed;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 3.5px, rgba(80, 60, 40, 0.018) 3.5px, rgba(80, 60, 40, 0.018) 4px),
+    linear-gradient(90deg, rgba(30, 20, 10, 0.08) 0%, rgba(255, 255, 255, 0.45) 4%, #faf6ed 9%, #faf6ed 95%, rgba(30, 20, 10, 0.06) 100%);
+}
+
+/* Physical Spine Curvature Shadow */
+.spine-gutter-shadow {
+  background: linear-gradient(to right, rgba(20, 12, 6, 0.28) 0%, rgba(20, 12, 6, 0.12) 2.5%, rgba(20, 12, 6, 0.03) 7%, transparent 13%);
+}
+
+/* Classical Initial Drop Capital */
+.drop-cap-classical::first-letter {
+  font-family: "Cinzel", "Playfair Display", Georgia, serif;
+  float: left;
+  font-size: 3.4rem;
+  line-height: 0.85;
+  padding-top: 0.2rem;
+  padding-right: 0.65rem;
+  padding-bottom: 0.1rem;
+  color: #78350f;
+  font-weight: 800;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+}
+
+/* Letterpress Embossed Ink Stamp Seal */
+.archival-stamp {
+  border: 2px dashed rgba(153, 27, 27, 0.65);
+  box-shadow: inset 0 0 0 2px rgba(153, 27, 27, 0.2);
+  color: #991b1b;
+  transform: rotate(-4deg);
+  letter-spacing: 0.18em;
+  mix-blend-mode: multiply;
+}

@@ -37,7 +37,8 @@ export function generateWoodTexture() {
 }
 
 /**
- * Procedural night sky with mountains and full moon for the left window
+ * Procedural landscape sky with mountain ranges for the left window
+ * Matches the reference library aesthetic (daylight / dusk mountain view)
  */
 export function generateWindowNightSkyTexture() {
   const canvas = document.createElement("canvas");
@@ -45,71 +46,72 @@ export function generateWindowNightSkyTexture() {
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
 
-  // Deep indigo night sky gradient
+  // 1. Clean daylight / dusk sky gradient
   const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  skyGrad.addColorStop(0, "#090b14");
-  skyGrad.addColorStop(0.5, "#101426");
-  skyGrad.addColorStop(0.8, "#1a1e36");
-  skyGrad.addColorStop(1, "#1e223d");
+  skyGrad.addColorStop(0, "#48719d"); // crisp blue at top
+  skyGrad.addColorStop(0.35, "#5d87b3");
+  skyGrad.addColorStop(0.65, "#93b3d1");
+  skyGrad.addColorStop(0.82, "#c9d8e5"); // pale soft horizon
+  skyGrad.addColorStop(1, "#dce6ef");
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Twinkling stars
-  ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-  for (let i = 0; i < 120; i++) {
-    const x = Math.random() * canvas.width;
-    const y = Math.random() * (canvas.height * 0.7);
-    const r = Math.random() * 1.5 + 0.5;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Glowing full moon
-  const moonX = canvas.width * 0.65;
-  const moonY = canvas.height * 0.22;
-  const moonRadius = 32;
-
-  // Moon ambient halo
-  const haloGrad = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.5, moonX, moonY, moonRadius * 4);
-  haloGrad.addColorStop(0, "rgba(235, 245, 255, 0.5)");
-  haloGrad.addColorStop(0.4, "rgba(200, 225, 255, 0.15)");
-  haloGrad.addColorStop(1, "rgba(200, 225, 255, 0)");
-  ctx.fillStyle = haloGrad;
-  ctx.beginPath();
-  ctx.arc(moonX, moonY, moonRadius * 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Moon body
-  ctx.fillStyle = "#f8fafc";
-  ctx.beginPath();
-  ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Mountain silhouettes in distance
-  ctx.fillStyle = "#0c0e18";
+  // 2. Distant mountain silhouette (farthest, pale blue-grey)
+  ctx.fillStyle = "#5c7996";
   ctx.beginPath();
   ctx.moveTo(0, canvas.height * 0.72);
-  ctx.lineTo(canvas.width * 0.35, canvas.height * 0.62);
-  ctx.lineTo(canvas.width * 0.75, canvas.height * 0.69);
-  ctx.lineTo(canvas.width, canvas.height * 0.64);
+  ctx.bezierCurveTo(
+    canvas.width * 0.25, canvas.height * 0.64,
+    canvas.width * 0.45, canvas.height * 0.69,
+    canvas.width * 0.70, canvas.height * 0.61
+  );
+  ctx.bezierCurveTo(
+    canvas.width * 0.85, canvas.height * 0.58,
+    canvas.width * 0.95, canvas.height * 0.64,
+    canvas.width, canvas.height * 0.63
+  );
   ctx.lineTo(canvas.width, canvas.height);
   ctx.lineTo(0, canvas.height);
   ctx.closePath();
   ctx.fill();
 
-  // Distant warm city lights / fireflies along base of mountains
-  const lightColors = ["#fde047", "#f59e0b", "#fbbf24", "#e2e8f0"];
-  for (let i = 0; i < 45; i++) {
-    const lx = Math.random() * canvas.width;
-    const ly = canvas.height * 0.70 + Math.random() * (canvas.height * 0.26);
-    ctx.fillStyle = lightColors[Math.floor(Math.random() * lightColors.length)];
-    ctx.globalAlpha = Math.random() * 0.7 + 0.3;
-    ctx.beginPath();
-    ctx.arc(lx, ly, Math.random() * 2 + 1, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1.0;
+  // 3. Middle mountain silhouette (mid-distance, deeper blue-slate)
+  ctx.fillStyle = "#3c5870";
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height * 0.79);
+  ctx.bezierCurveTo(
+    canvas.width * 0.20, canvas.height * 0.72,
+    canvas.width * 0.40, canvas.height * 0.76,
+    canvas.width * 0.60, canvas.height * 0.69
+  );
+  ctx.bezierCurveTo(
+    canvas.width * 0.78, canvas.height * 0.66,
+    canvas.width * 0.90, canvas.height * 0.74,
+    canvas.width, canvas.height * 0.72
+  );
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.lineTo(0, canvas.height);
+  ctx.closePath();
+  ctx.fill();
+
+  // 4. Foreground ridge (closest mountain, dark slate-blue)
+  ctx.fillStyle = "#253b4c";
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height * 0.86);
+  ctx.bezierCurveTo(
+    canvas.width * 0.22, canvas.height * 0.81,
+    canvas.width * 0.38, canvas.height * 0.84,
+    canvas.width * 0.55, canvas.height * 0.78
+  );
+  ctx.bezierCurveTo(
+    canvas.width * 0.75, canvas.height * 0.75,
+    canvas.width * 0.88, canvas.height * 0.82,
+    canvas.width, canvas.height * 0.80
+  );
+  ctx.lineTo(canvas.width, canvas.height);
+  ctx.lineTo(0, canvas.height);
+  ctx.closePath();
+  ctx.fill();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

@@ -208,7 +208,7 @@ export const educationData = [
     institution: "Vani Vidhyalaya Matric Higher Secondary School",
     degree: "Higher Secondary Certificate (HSC)",
     period: "2019 – 2020",
-    score: "Percentage: 71.5%",
+    score: "Percentage: 72.5%",
     location: "Tamil Nadu",
     type: "Schooling"
   },

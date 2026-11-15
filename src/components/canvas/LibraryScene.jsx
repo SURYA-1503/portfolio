@@ -43,7 +43,8 @@ export function LibraryScene({
 
     // ─── 1. Scene, Camera, Renderer ───────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#06070c");
+    // Default neutral studio wall grey (before light on, matching reference image)
+    scene.background = new THREE.Color("#4a4f56");
 
     const camera = new THREE.PerspectiveCamera(37, width / height, 0.1, 50);
     camera.position.set(0.08, 0.32, 4.45);
@@ -59,7 +60,7 @@ export function LibraryScene({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.80; // Start dim (lights OFF)
+    renderer.toneMappingExposure = 1.18; // Crisp, clear exposure before light on
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
@@ -67,9 +68,9 @@ export function LibraryScene({
     const woodTexture = generateWoodTexture();
     const woodMaterial = new THREE.MeshStandardMaterial({
       map: woodTexture,
-      roughness: 0.62,
-      metalness: 0.08,
-      color: 0x42271a
+      roughness: 0.65,
+      metalness: 0.06,
+      color: 0x362218
     });
 
     const pagesTexture = generatePagesTexture();
@@ -79,15 +80,30 @@ export function LibraryScene({
       metalness: 0.02
     });
 
-    // ─── 3. Lighting — initial state: lights OFF (nighttime atmosphere) ───
-    const ambientLight = new THREE.AmbientLight(0x1a2340, 0.75);
+    // ─── 3. Natural Room Lighting (Balanced daylight before light on) ─────
+    const ambientLight = new THREE.AmbientLight(0xdde8f5, 1.45);
     scene.add(ambientLight);
 
-    const lampX = 0.48;
-    const lampY = 1.45;
-    const lampZ = 0.58;
+    // Window daylight coming from the left window
+    const windowDaylight = new THREE.DirectionalLight(0xe8f2fc, 1.35);
+    windowDaylight.position.set(-3.2, 1.6, 0.5);
+    windowDaylight.target.position.set(0, 0, 0);
+    scene.add(windowDaylight);
+    scene.add(windowDaylight.target);
 
-    const lampLight = new THREE.PointLight(0xffe2b0, 0.3, 6.0, 1.2);
+    // Subtle front room fill light to ensure all books & titles are readable
+    const frontFillLight = new THREE.DirectionalLight(0xfff7ee, 0.45);
+    frontFillLight.position.set(0.1, 0.5, 3.0);
+    frontFillLight.target.position.set(0.1, 0, 0);
+    scene.add(frontFillLight);
+    scene.add(frontFillLight.target);
+
+    // Warm ceiling lamp spotlight (toggled ON when light switch / cord is pulled)
+    const lampX = 0.52;
+    const lampY = 1.55;
+    const lampZ = 0.52;
+
+    const lampLight = new THREE.PointLight(0xffe2b0, 0.0, 6.0, 1.2);
     lampLight.position.set(lampX, lampY, lampZ);
     lampLight.castShadow = true;
     lampLight.shadow.mapSize.width = 1024;
@@ -95,31 +111,13 @@ export function LibraryScene({
     lampLight.shadow.bias = -0.001;
     scene.add(lampLight);
 
-    const lampSpot = new THREE.SpotLight(0xffe2b0, 0.4, 6.0, Math.PI / 3.0, 0.55, 1.2);
+    const lampSpot = new THREE.SpotLight(0xffe2b0, 0.0, 6.5, Math.PI / 2.8, 0.55, 1.2);
     lampSpot.position.set(lampX, lampY, lampZ);
     lampSpot.target.position.set(lampX, -0.35, 0);
     scene.add(lampSpot);
     scene.add(lampSpot.target);
 
-    // Always-on subtle moonlight (keeps scene readable when lights off)
-    const windowMoonLight = new THREE.DirectionalLight(0xa5cbf5, 1.4);
-    windowMoonLight.position.set(-3.2, 1.5, -0.2);
-    windowMoonLight.target.position.set(0, 0, 0);
-    scene.add(windowMoonLight);
-    scene.add(windowMoonLight.target);
-
-    // Rim light for books (always on, slightly dim — ensures titles readable)
-    const rimLight = new THREE.DirectionalLight(0xc8d8ff, 0.55);
-    rimLight.position.set(0, 0.5, 2.5);
-    rimLight.target.position.set(0, 0, 0);
-    scene.add(rimLight);
-    scene.add(rimLight.target);
-
-    const fillLight = new THREE.PointLight(0x5a3520, 0.3, 4.5);
-    fillLight.position.set(0, -1.2, 1.2);
-    scene.add(fillLight);
-
-    // ─── 4. Left Window (Night Sky, Moon & Mountains) ─────────────────────
+    // ─── 4. Left Window (Clear Mountain Sky & Sill) ───────────────────────
     const windowGroup = new THREE.Group();
     windowGroup.position.set(-2.65, 0.5, -0.45);
 
@@ -195,31 +193,52 @@ export function LibraryScene({
     shelfGroup.add(midShelf, botShelf);
     scene.add(shelfGroup);
 
-    // ─── 6. The 9 Interactive Books — Natural realistic arrangement ────────
+    // ─── 6. Decorative Left & Right Resting Books (Matching Screenshot) ───
+    const decorMatDark1 = new THREE.MeshStandardMaterial({ color: 0x1a2128, roughness: 0.75 });
+    const decorMatDark2 = new THREE.MeshStandardMaterial({ color: 0x242220, roughness: 0.78 });
+    const decorMatNavy  = new THREE.MeshStandardMaterial({ color: 0x1d293d, roughness: 0.72 });
+
+    // Left book 1: Overshoot (standing straight against left wall)
+    const overshootMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.95, 0.52), decorMatDark1);
+    overshootMesh.position.set(-1.98, -0.42 + 0.95 / 2 + 0.04, 0.0);
+    overshootMesh.castShadow = true;
+    shelfGroup.add(overshootMesh);
+
+    // Left book 2: Friction (standing straight next to overshoot)
+    const frictionMesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.92, 0.51), decorMatDark2);
+    frictionMesh.position.set(-1.83, -0.42 + 0.92 / 2 + 0.04, 0.0);
+    frictionMesh.castShadow = true;
+    shelfGroup.add(frictionMesh);
+
+    // Right book: Light (leaning against right partition)
+    const lightBookMesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.96, 0.52), decorMatNavy);
+    lightBookMesh.position.set(0.74, -0.42 + 0.96 / 2 + 0.04, 0.02);
+    lightBookMesh.rotation.z = -0.16;
+    lightBookMesh.castShadow = true;
+    shelfGroup.add(lightBookMesh);
+
+    // ─── 7. The 9 Interactive Developer Books ─────────────────────────────
     const bookMeshes = [];
     const hitboxMeshes = [];
 
-    const bookWidth  = 0.195;
+    const bookWidth  = 0.192;
     const bookHeight = 0.94;
     const bookDepth  = 0.54;
+    const bookGap    = 0.007; // Tight natural arrangement without gaps
+    const startX     = -1.68; // Directly after Friction book
 
-    // Realistic natural tilts: each book has a slight rotation
-    // Some lean left, some right, some perfectly upright — like a real shelf
+    // Soft individual organic tilts (subtle natural library lean)
     const naturalTilts = [
-      0.00,   // 01 upright
-      0.02,   // 02 tiny lean right
-     -0.03,   // 03 lean left
-      0.00,   // 04 upright
-      0.025,  // 05 lean right
-     -0.015,  // 06 lean left
-      0.01,   // 07 upright
-      0.03,   // 08 lean right
-      0.00    // 09 upright
+      0.00,   // 01 ABOUT ME
+      0.015,  // 02 MY SKILLS
+     -0.02,   // 03 EXPERIENCE
+      0.00,   // 04 MY PROJECTS
+      0.02,   // 05 MY JOURNEY
+     -0.012,  // 06 HOBBIES
+      0.008,  // 07 EDUCATION
+      0.025,  // 08 RESUME
+      0.00    // 09 CONTACT
     ];
-
-    // Gap between books — reduced to 0.008 for tight library packing
-    const bookGap = 0.008;
-    const startX = -1.90;
 
     BOOKS_CATALOG.forEach((book, i) => {
       const spineTex = generateBookSpineTexture({
@@ -232,9 +251,6 @@ export function LibraryScene({
 
       const coverTex = generateBookCoverTexture(book.color, book.title);
 
-      // ★ FIX: Use separate materials per face.
-      // The spine face gets spineMat; front/back/top/bottom get coverMat.
-      // No dark overlay, no opacity reduction — pure colors as designed.
       const coverMat = new THREE.MeshStandardMaterial({
         map: coverTex,
         roughness: 0.72,
@@ -246,15 +262,13 @@ export function LibraryScene({
         metalness: 0.06
       });
 
-      // THREE.BoxGeometry face order: +X, -X, +Y, -Y, +Z(front), -Z(back/spine)
-      // Book spine faces the camera (+Z) = index 4
       const materials = [
         coverMat,     // right face (+X)
-        spineMat,     // left face = spine facing camera (-X? depends on orientation)
-        pagesMaterial,// top
-        pagesMaterial,// bottom
-        spineMat,     // front (+Z) — spine visible from viewer
-        coverMat      // back (-Z)
+        spineMat,     // left face (-X)
+        pagesMaterial,// top face (+Y)
+        pagesMaterial,// bottom face (-Y)
+        spineMat,     // front face (+Z: spine visible from viewer)
+        coverMat      // back face (-Z)
       ];
 
       const hVariation = bookHeight + Math.sin(i * 1.7) * 0.035;
@@ -287,8 +301,8 @@ export function LibraryScene({
       shelfGroup.add(mesh);
       bookMeshes.push(mesh);
 
-      // Static invisible raycast hitbox — prevents hover chatter
-      const hitGeo = new THREE.BoxGeometry(bookWidth + 0.024, hVariation + 0.08, bookDepth * 1.4);
+      // Static invisible raycast hitbox
+      const hitGeo = new THREE.BoxGeometry(bookWidth + 0.02, hVariation + 0.08, bookDepth * 1.4);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
       const hitMesh = new THREE.Mesh(hitGeo, hitMat);
       hitMesh.position.set(posX, posY, posZ + 0.1);
@@ -297,7 +311,66 @@ export function LibraryScene({
       hitboxMeshes.push(hitMesh);
     });
 
-    // ─── 7. Right Side Middle Shelf Accessories ────────────────────────────
+    // ─── 8. Hanging Light Pull String & Ivory Tip ("light tip end") ───────
+    // Directly hanging from the shelf crown above the books (exact match to screenshot)
+    const pullCordGroup = new THREE.Group();
+    pullCordGroup.position.set(0.52, 1.38, 0.42);
+
+    const cordLength = 0.36;
+    const cordGeo = new THREE.CylinderGeometry(0.0018, 0.0018, cordLength, 8);
+    // Wire is clean white with subtle luminescence matching user request
+    const cordMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.20,
+      metalness: 0.0,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.16
+    });
+    const cordMesh = new THREE.Mesh(cordGeo, cordMat);
+    cordMesh.position.y = -cordLength / 2;
+    pullCordGroup.add(cordMesh);
+
+    // Brass collar cap
+    const capGeo = new THREE.CylinderGeometry(0.007, 0.007, 0.012, 16);
+    const brassMat = new THREE.MeshStandardMaterial({
+      color: 0xd4a246,
+      metalness: 0.85,
+      roughness: 0.22
+    });
+    const capMesh = new THREE.Mesh(capGeo, brassMat);
+    capMesh.position.y = -cordLength;
+    pullCordGroup.add(capMesh);
+
+    // Conical white/ivory pull tassel / tip (the "light tip end")
+    const tipGeo = new THREE.CylinderGeometry(0.007, 0.016, 0.048, 16);
+    const tipMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.30,
+      metalness: 0.04,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.08
+    });
+    const tipMesh = new THREE.Mesh(tipGeo, tipMat);
+    tipMesh.position.y = -cordLength - 0.025;
+    pullCordGroup.add(tipMesh);
+
+    // Bottom tip round bead
+    const beadEndGeo = new THREE.SphereGeometry(0.0075, 16, 16);
+    const beadEndMesh = new THREE.Mesh(beadEndGeo, tipMat);
+    beadEndMesh.position.y = -cordLength - 0.049;
+    pullCordGroup.add(beadEndMesh);
+
+    // Large invisible hitbox mesh around the light cord & tip for interactive hover & swing
+    const switchHitGeo = new THREE.BoxGeometry(0.36, 0.58, 0.36);
+    const switchHitMat = new THREE.MeshBasicMaterial({ visible: false });
+    const switchHitMesh = new THREE.Mesh(switchHitGeo, switchHitMat);
+    switchHitMesh.position.y = -cordLength / 2 - 0.04;
+    switchHitMesh.userData = { isLampSwitch: true };
+    pullCordGroup.add(switchHitMesh);
+
+    scene.add(pullCordGroup);
+
+    // ─── 9. Right Middle Shelf Accessories (Frame, Sphere & Stack) ────────
     const artTex = generateArtFrameTexture();
     const artFrameGeo = new THREE.BoxGeometry(0.38, 0.48, 0.03);
     const artFrameMat = [
@@ -306,34 +379,43 @@ export function LibraryScene({
       woodMaterial
     ];
     const artMesh = new THREE.Mesh(artFrameGeo, artFrameMat);
-    artMesh.position.set(1.4, -0.15, -0.1);
+    artMesh.position.set(1.36, -0.15, -0.08);
     artMesh.rotation.y = -0.12;
     artMesh.castShadow = true;
     shelfGroup.add(artMesh);
 
+    // Smooth white marble sphere
     const sphereGeo = new THREE.SphereGeometry(0.09, 32, 32);
     const sphereMat = new THREE.MeshStandardMaterial({
-      color: 0xf3f4f6,
-      roughness: 0.15,
-      metalness: 0.1
+      color: 0xf6f6f8,
+      roughness: 0.18,
+      metalness: 0.05
     });
     const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
-    sphereMesh.position.set(1.72, -0.32, 0.1);
+    sphereMesh.position.set(1.68, -0.32, 0.1);
     sphereMesh.castShadow = true;
     shelfGroup.add(sphereMesh);
 
-    const stackColors = ["#43302b", "#222c3c", "#3d3228"];
-    stackColors.forEach((col, idx) => {
-      const sGeo = new THREE.BoxGeometry(0.48, 0.065, 0.38);
-      const sMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.8 });
+    // Horizontal stack of 3 books with visible page sides
+    const stackBookColors = ["#1a1917", "#322722", "#481c1c"];
+    stackBookColors.forEach((col, idx) => {
+      const sGeo = new THREE.BoxGeometry(0.48, 0.068, 0.38);
+      const sMat = [
+        pagesMaterial, // right face
+        pagesMaterial, // left face
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.75 }), // top
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.75 }), // bottom
+        pagesMaterial, // front face (+Z: white paper edges visible)
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.75 })  // back
+      ];
       const sMesh = new THREE.Mesh(sGeo, sMat);
-      sMesh.position.set(1.75, -0.38 + idx * 0.07, -0.05);
-      sMesh.rotation.y = (idx - 1) * 0.04;
+      sMesh.position.set(1.72, -0.38 + idx * 0.072, -0.05);
+      sMesh.rotation.y = (idx - 1) * 0.035;
       sMesh.castShadow = true;
       shelfGroup.add(sMesh);
     });
 
-    // ─── 8. Top Shelf — Analog Clock & Ceramic Vase ───────────────────────
+    // ─── 10. Top Shelf: Real-Time Clock, Vase & Branches ──────────────────
     const clockGroup = new THREE.Group();
     clockGroup.position.set(1.85, 1.75, -0.1);
 
@@ -343,13 +425,12 @@ export function LibraryScene({
     const clockMat = new THREE.MeshStandardMaterial({
       map: clockTex,
       roughness: 0.5,
-      metalness: 0.1
+      metalness: 0.15
     });
     const clockBody = new THREE.Mesh(clockRimGeo, clockMat);
     clockBody.castShadow = true;
     clockGroup.add(clockBody);
 
-    // Clock frame rim
     const clockFrameGeo = new THREE.TorusGeometry(0.24, 0.025, 8, 32);
     const clockFrameMat = new THREE.MeshStandardMaterial({ color: 0x5a3a24, roughness: 0.4, metalness: 0.3 });
     const clockFrame = new THREE.Mesh(clockFrameGeo, clockFrameMat);
@@ -366,7 +447,6 @@ export function LibraryScene({
     const secHand = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.18, 0.005), secMat);
     secHand.position.z = 0.039;
 
-    // Center pivot dot
     const pivotGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.01, 16);
     pivotGeo.rotateX(Math.PI / 2);
     const pivotMesh = new THREE.Mesh(pivotGeo, new THREE.MeshBasicMaterial({ color: 0x1f1914 }));
@@ -375,7 +455,7 @@ export function LibraryScene({
     clockGroup.add(hourHand, minHand, secHand, pivotMesh);
     shelfGroup.add(clockGroup);
 
-    // Vase with dried branches
+    // Ceramic vase with dried branches
     const vaseGroup = new THREE.Group();
     vaseGroup.position.set(1.25, 1.55, -0.15);
     const vaseGeo = new THREE.CylinderGeometry(0.06, 0.1, 0.32, 16);
@@ -395,61 +475,12 @@ export function LibraryScene({
     }
     shelfGroup.add(vaseGroup);
 
-    // ─── 9. Light Switch on the left wall of bookshelf ────────────────────
-    // A small physical toggle switch that the user can click to toggle lighting
-    const switchPanelGeo = new THREE.BoxGeometry(0.11, 0.17, 0.025);
-    const switchPanelMat = new THREE.MeshStandardMaterial({ color: 0xd4c8b4, roughness: 0.5, metalness: 0.0 });
-    const switchPanel = new THREE.Mesh(switchPanelGeo, switchPanelMat);
-    switchPanel.position.set(-2.42, 0.78, 0.22);
-    scene.add(switchPanel);
-
-    const switchToggleGeo = new THREE.BoxGeometry(0.045, 0.072, 0.03);
-    const switchToggleMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e4, roughness: 0.3, metalness: 0.1 });
-    const switchToggle = new THREE.Mesh(switchToggleGeo, switchToggleMat);
-    switchToggle.position.set(-2.42, 0.785, 0.24);
-    switchToggle.userData = { isLampSwitch: true };
-    scene.add(switchToggle);
-
-    // Small label above the switch
-    const switchLabelGeo = new THREE.BoxGeometry(0.08, 0.02, 0.005);
-    const switchLabelMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
-    const switchLabel = new THREE.Mesh(switchLabelGeo, switchLabelMat);
-    switchLabel.position.set(-2.42, 0.86, 0.23);
-    scene.add(switchLabel);
-
-    // ─── 10. Ceiling: Hanging Lamp & Mobile ───────────────────────────────
-    const lampCordGeo = new THREE.CylinderGeometry(0.004, 0.004, 1.2, 8);
-    const lampCordMat = new THREE.MeshBasicMaterial({ color: 0x1f1f1f });
-    const lampCord = new THREE.Mesh(lampCordGeo, lampCordMat);
-    lampCord.position.set(lampX, 2.05, lampZ);
-
-    const shadeGeo = new THREE.CylinderGeometry(0.04, 0.16, 0.16, 24, 1, true);
-    const shadeMat = new THREE.MeshStandardMaterial({
-      color: 0x222222,
-      roughness: 0.5,
-      metalness: 0.4,
-      side: THREE.DoubleSide
-    });
-    const shadeMesh = new THREE.Mesh(shadeGeo, shadeMat);
-    shadeMesh.position.set(lampX, 1.48, lampZ);
-
-    const stringGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.45);
-    const pullString = new THREE.Mesh(stringGeo, lampCordMat);
-    pullString.position.set(lampX + 0.08, 1.25, lampZ);
-
-    const beadGeo = new THREE.SphereGeometry(0.022, 16, 16);
-    const beadMat = new THREE.MeshStandardMaterial({ color: 0xd4a045, metalness: 0.8, roughness: 0.2 });
-    const beadMesh = new THREE.Mesh(beadGeo, beadMat);
-    beadMesh.position.set(lampX + 0.08, 1.02, lampZ);
-    beadMesh.userData = { isLampSwitch: true };
-
-    scene.add(lampCord, shadeMesh, pullString, beadMesh);
-
-    // ─── 11. Hanging Mobile ───────────────────────────────────────────────
+    // Hanging kinetic mobile on top left
     const mobileGroup = new THREE.Group();
     mobileGroup.position.set(-0.35, 2.1, 0.2);
 
-    const mobileWire1 = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.55), lampCordMat);
+    const mobileWireMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    const mobileWire1 = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.55), mobileWireMat);
     mobileWire1.rotation.z = Math.PI / 2;
     mobileGroup.add(mobileWire1);
 
@@ -477,23 +508,27 @@ export function LibraryScene({
     mobileGroup.add(discOrange, discWhite, discDark);
     scene.add(mobileGroup);
 
-    // ─── 12. Bottom Shelf Vintage Leather Books ────────────────────────────
-    const leatherColors = [0x221c17, 0x1b2326, 0x2b1e16, 0x18201a, 0x281919, 0x1f1b29];
+    // ─── 11. Bottom Shelf Vintage Leather Books ────────────────────────────
+    const leatherColors = [0x1e1915, 0x181e22, 0x261b14, 0x161c17, 0x241616, 0x1c1824];
     for (let b = 0; b < 18; b++) {
       const lbH = 0.72 + Math.sin(b * 1.8) * 0.06;
       const lbW = 0.14 + Math.cos(b * 2.1) * 0.03;
       const lbGeo = new THREE.BoxGeometry(lbW, lbH, 0.48);
-      const lbMat = new THREE.MeshStandardMaterial({
-        color: leatherColors[b % leatherColors.length],
-        roughness: 0.85
-      });
-      const lbMesh = new THREE.Mesh(lbGeo, lbMat);
+      const lMat = [
+        new THREE.MeshStandardMaterial({ color: leatherColors[b % leatherColors.length], roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ color: leatherColors[b % leatherColors.length], roughness: 0.85 }),
+        pagesMaterial, // White paper edge visible at the top!
+        pagesMaterial,
+        new THREE.MeshStandardMaterial({ color: leatherColors[b % leatherColors.length], roughness: 0.85 }),
+        pagesMaterial
+      ];
+      const lbMesh = new THREE.Mesh(lbGeo, lMat);
       lbMesh.position.set(-1.8 + b * 0.175, -1.35 + lbH / 2 + 0.04, 0.0);
-      lbMesh.rotation.z = (Math.sin(b * 2.3) * 0.025); // subtle natural lean
+      lbMesh.rotation.z = Math.sin(b * 2.3) * 0.02;
       shelfGroup.add(lbMesh);
     }
 
-    // ─── 13. Raycasting & Pointer ─────────────────────────────────────────
+    // ─── 12. High-Performance Raycasting & Pointer ─────────────────────────
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2(-100, -100);
     let targetCameraX = 0.08;
@@ -506,72 +541,75 @@ export function LibraryScene({
       targetCameraY = 0.32 + pointer.y * 0.07;
     };
 
-    // Transition manager (book extraction / return)
     let currentTransition = null;
     let lastActiveIndex = null;
+    let cordPullAnim = 0; // Tactile physical cord pull animation
 
     const handleClick = () => {
       if (currentTransition || (activeBookIndexRef.current != null)) return;
 
       raycaster.setFromCamera(pointer, camera);
-      const allTargets = [...hitboxMeshes, beadMesh, switchToggle];
+      const allTargets = [...hitboxMeshes, switchHitMesh];
       const intersects = raycaster.intersectObjects(allTargets);
 
       if (intersects.length > 0) {
         const clickedObj = intersects[0].object;
         if (clickedObj.userData.isLampSwitch) {
+          cordPullAnim = 1.0; // Trigger physical pull spring
           onToggleLightRef.current?.();
         } else if (clickedObj.userData.index !== undefined) {
           const idx = clickedObj.userData.index;
           currentTransition = {
             type: "extracting",
             index: idx,
-            startTime: null, // set in animate loop
+            startTime: null,
             duration: 0.72
           };
         }
       }
     };
 
-    // Cursor change for interactable objects
-    const handlePointerDown = () => {};
-
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("click", handleClick);
 
-    // ─── 14. Animation Loop ───────────────────────────────────────────────
+    // ─── 13. Animation Loop ───────────────────────────────────────────────
     const clock = new THREE.Clock();
-    // Track cursor hover for DOM cursor style
-    let lastHoverIdx = null;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Lighting lerp — smooth ON/OFF transition
+      // Lighting lerp — Smooth transition between Daylight (OFF) and Warm Room (ON)
       const lit = isLightOnRef.current;
-      const targetLampInt  = lit ? 4.4 : 0.3;
-      const targetSpotInt  = lit ? 5.4 : 0.4;
-      const targetAmbInt   = lit ? 1.6 : 0.75;
-      const targetExposure = lit ? 1.25 : 0.80;
-      const targetBg       = lit ? new THREE.Color("#0f121b") : new THREE.Color("#06070c");
+      const targetLampInt  = lit ? 4.5 : 0.0;
+      const targetSpotInt  = lit ? 5.5 : 0.0;
+      const targetAmbInt   = lit ? 1.55 : 1.45;
+      const targetExposure = lit ? 1.25 : 1.18;
+      const targetBg       = lit ? new THREE.Color("#211b17") : new THREE.Color("#4a4f56");
+      const targetAmbColor = lit ? new THREE.Color("#fbeedc") : new THREE.Color("#dde8f5");
 
-      lampLight.intensity  += (targetLampInt  - lampLight.intensity)  * 0.09;
-      lampSpot.intensity   += (targetSpotInt  - lampSpot.intensity)   * 0.09;
-      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * 0.09;
-      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 0.09;
-      scene.background.lerp(targetBg, 0.09);
+      lampLight.intensity  += (targetLampInt  - lampLight.intensity)  * 0.10;
+      lampSpot.intensity   += (targetSpotInt  - lampSpot.intensity)   * 0.10;
+      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * 0.10;
+      ambientLight.color.lerp(targetAmbColor, 0.10);
+      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 0.10;
+      scene.background.lerp(targetBg, 0.10);
 
-      // Animate light switch toggle visual
-      const switchTargetY = lit ? 0.80 : 0.775;
-      switchToggle.position.y += (switchTargetY - switchToggle.position.y) * 0.14;
+      // Physical Cord Pull Spring Animation
+      if (cordPullAnim > 0.001) {
+        cordPullAnim *= 0.88;
+        const pullOffset = Math.sin(cordPullAnim * Math.PI) * 0.035;
+        pullCordGroup.position.y = 1.38 - pullOffset;
+      } else {
+        pullCordGroup.position.y = 1.38;
+      }
 
       // Camera parallax
       camera.position.x += (targetCameraX - camera.position.x) * 0.055;
       camera.position.y += (targetCameraY - camera.position.y) * 0.055;
       camera.lookAt(0.08, 0.12, 0);
 
-      // Detect book close (user closed the reader)
+      // Detect book close
       const currentActive = activeBookIndexRef.current;
       if (lastActiveIndex !== null && currentActive == null && !currentTransition) {
         const idx = lastActiveIndex;
@@ -591,12 +629,11 @@ export function LibraryScene({
       }
       lastActiveIndex = currentActive;
 
-      // If transition just created by click handler, set startTime now
       if (currentTransition && currentTransition.startTime === null) {
         currentTransition.startTime = elapsedTime;
       }
 
-      // Execute transition
+      // Execute book extraction / return
       if (currentTransition && currentTransition.startTime !== null) {
         const elapsed = elapsedTime - currentTransition.startTime;
         const rawT = Math.min(Math.max(elapsed / currentTransition.duration, 0), 1);
@@ -660,31 +697,34 @@ export function LibraryScene({
         }
       }
 
-      // ★ Hover detection — against static hitboxes only
+      // Hover detection
       let activeHoverIdx = null;
       if (!currentTransition && activeBookIndexRef.current == null) {
         raycaster.setFromCamera(pointer, camera);
-        // Also check if hovering the lamp bead or switch toggle for cursor
-        const switchTargets = [beadMesh, switchToggle];
-        const switchHit = raycaster.intersectObjects(switchTargets);
+        const switchHit = raycaster.intersectObject(switchHitMesh);
         const hitIntersects = raycaster.intersectObjects(hitboxMeshes);
 
         if (hitIntersects.length > 0) {
           activeHoverIdx = hitIntersects[0].object.userData.index;
         }
 
-        // Update DOM cursor
         const isHoveringInteractable = switchHit.length > 0 || hitIntersects.length > 0;
         renderer.domElement.style.cursor = isHoveringInteractable ? "pointer" : "default";
+
+        // Subtle glow / scale feedback on light tip when hovered
+        if (switchHit.length > 0) {
+          tipMat.emissive = new THREE.Color(0x332211);
+        } else {
+          tipMat.emissive = new THREE.Color(0x000000);
+        }
       } else {
         renderer.domElement.style.cursor = "default";
       }
 
-      // ★ Smooth Book Hover — no dark overlays, only lift + subtle tilt
+      // Smooth Book Hover (Preserving exact colors and readability)
       bookMeshes.forEach((mesh) => {
         if (currentTransition && mesh.userData.index === currentTransition.index) return;
         if (currentTransition || activeBookIndexRef.current != null) {
-          // All books: gently return to rest
           mesh.position.z += (mesh.userData.baseZ - mesh.position.z) * 0.14;
           mesh.position.y += (mesh.userData.baseY - mesh.position.y) * 0.14;
           mesh.rotation.x += (0 - mesh.rotation.x) * 0.14;
@@ -696,11 +736,9 @@ export function LibraryScene({
         const isHovered = mesh.userData.index === activeHoverIdx;
 
         if (isHovered) {
-          // Lift forward (z), slight up (y), gentle 3D tilt based on mouse position
-          mesh.userData.targetZ = 0.34;
-          mesh.userData.targetY = mesh.userData.baseY + 0.042;
+          mesh.userData.targetZ = 0.34; // Lift forward
+          mesh.userData.targetY = mesh.userData.baseY + 0.042; // Lift slightly up
 
-          // Tilt relative to this book's x position (not global pointer)
           const bookScreenX = mesh.userData.baseX / 2.2;
           const tiltFactorY = (pointer.x - bookScreenX) * 0.08;
           const tiltFactorX = -(pointer.y) * 0.05;
@@ -715,7 +753,6 @@ export function LibraryScene({
           mesh.userData.targetRotZ = mesh.userData.baseRotZ;
         }
 
-        // Spring-damped lerp — smooth and natural
         const lerpFactor = 0.15;
         mesh.position.z  += (mesh.userData.targetZ    - mesh.position.z)  * lerpFactor;
         mesh.position.y  += (mesh.userData.targetY    - mesh.position.y)  * lerpFactor;
@@ -724,7 +761,7 @@ export function LibraryScene({
         mesh.rotation.z  += (mesh.userData.targetRotZ - mesh.rotation.z)  * lerpFactor;
       });
 
-      // ─── Clock hands ────────────────────────────────────────────────────
+      // Rotating Clock Hands in real-time
       const now = new Date();
       const sec = now.getSeconds() + now.getMilliseconds() / 1000;
       const min = now.getMinutes() + sec / 60;
@@ -734,7 +771,7 @@ export function LibraryScene({
       minHand.rotation.z  = -min * ((Math.PI * 2) / 60);
       secHand.rotation.z  = -sec * ((Math.PI * 2) / 60);
 
-      // ─── Mobile gentle sway ─────────────────────────────────────────────
+      // Mobile sway
       mobileGroup.rotation.y = Math.sin(elapsedTime * 0.7)  * 0.14;
       mobileGroup.rotation.z = Math.cos(elapsedTime * 0.5)  * 0.03;
 
@@ -743,7 +780,7 @@ export function LibraryScene({
 
     animate();
 
-    // ─── 15. Responsive Resize ────────────────────────────────────────────
+    // ─── 14. Responsive Resize ────────────────────────────────────────────
     const handleResize = () => {
       width  = window.innerWidth;
       height = window.innerHeight;
@@ -767,7 +804,6 @@ export function LibraryScene({
     window.addEventListener("resize", handleResize);
     handleResize();
 
-    // ─── Cleanup ──────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("pointermove", handlePointerMove);
@@ -789,7 +825,7 @@ export function LibraryScene({
         container.removeChild(renderer.domElement);
       }
     };
-  }, []); // Run ONCE — no teardown on prop changes
+  }, []);
 
   return (
     <div

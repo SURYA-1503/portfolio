@@ -81,6 +81,7 @@ function App() {
 
       {/* 2. UI Overlay — book telemetry + light + audio controls */}
       <LibraryOverlay
+        onOpenBook={handleSelectBook}
         isLightOn={isLightOn}
         onToggleLight={handleToggleLight}
         isAudioPlaying={isAudioPlaying}
