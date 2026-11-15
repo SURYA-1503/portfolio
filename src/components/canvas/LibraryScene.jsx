@@ -43,8 +43,8 @@ export function LibraryScene({
 
     // ─── 1. Scene, Camera, Renderer ───────────────────────────────────────
     const scene = new THREE.Scene();
-    // Default neutral studio wall grey (before light on, matching reference image)
-    scene.background = new THREE.Color("#4a4f56");
+    // Dark night/dusk atmosphere — matches reference site's OFF state
+    scene.background = new THREE.Color("#0d0f14");
 
     const camera = new THREE.PerspectiveCamera(37, width / height, 0.1, 50);
     camera.position.set(0.08, 0.32, 4.45);
@@ -60,7 +60,7 @@ export function LibraryScene({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18; // Crisp, clear exposure before light on
+    renderer.toneMappingExposure = 0.55; // Dark/moody exposure in OFF state
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
@@ -80,19 +80,20 @@ export function LibraryScene({
       metalness: 0.02
     });
 
-    // ─── 3. Natural Room Lighting (Balanced daylight before light on) ─────
-    const ambientLight = new THREE.AmbientLight(0xdde8f5, 1.45);
+    // ─── 3. Lighting — dark/moody OFF state, warm ON state ───────────────
+    // Start very dim — like a room at dusk with only window moonlight
+    const ambientLight = new THREE.AmbientLight(0x8899bb, 0.28);
     scene.add(ambientLight);
 
-    // Window daylight coming from the left window
-    const windowDaylight = new THREE.DirectionalLight(0xe8f2fc, 1.35);
+    // Faint cool moonlight/streetlight from the left window (OFF state)
+    const windowDaylight = new THREE.DirectionalLight(0x9bb8d4, 0.22);
     windowDaylight.position.set(-3.2, 1.6, 0.5);
     windowDaylight.target.position.set(0, 0, 0);
     scene.add(windowDaylight);
     scene.add(windowDaylight.target);
 
-    // Subtle front room fill light to ensure all books & titles are readable
-    const frontFillLight = new THREE.DirectionalLight(0xfff7ee, 0.45);
+    // Very minimal front fill — just enough to see book spines in the dark
+    const frontFillLight = new THREE.DirectionalLight(0x667799, 0.12);
     frontFillLight.position.set(0.1, 0.5, 3.0);
     frontFillLight.target.position.set(0.1, 0, 0);
     scene.add(frontFillLight);
@@ -534,16 +535,29 @@ export function LibraryScene({
     let targetCameraX = 0.08;
     let targetCameraY = 0.32;
 
+    // ── Pendulum swing physics for the light cord ──────────────────────────
+    // The cord pivot is at pullCordGroup.position (top of cord).
+    // Rotating pullCordGroup.rotation.z swings it left/right like a pendulum.
+    let cordAngleZ      = 0;   // current tilt angle (radians)
+    let cordVelZ        = 0;   // angular velocity
+    let isHoveringCord  = false;
+    let lastPointerX    = -100;
+    let pointerDeltaX   = 0;
+
     const handlePointerMove = (e) => {
-      pointer.x = (e.clientX / width) * 2 - 1;
-      pointer.y = -(e.clientY / height) * 2 + 1;
+      const nextX = (e.clientX / width) * 2 - 1;
+      const nextY = -(e.clientY / height) * 2 + 1;
+      pointerDeltaX = nextX - (lastPointerX === -100 ? nextX : lastPointerX);
+      lastPointerX  = nextX;
+      pointer.x = nextX;
+      pointer.y = nextY;
       targetCameraX = 0.08 + pointer.x * 0.14;
       targetCameraY = 0.32 + pointer.y * 0.07;
     };
 
     let currentTransition = null;
     let lastActiveIndex = null;
-    let cordPullAnim = 0; // Tactile physical cord pull animation
+    let cordPullAnim = 0; // Tactile physical cord pull animation (vertical)
 
     const handleClick = () => {
       if (currentTransition || (activeBookIndexRef.current != null)) return;
@@ -556,6 +570,8 @@ export function LibraryScene({
         const clickedObj = intersects[0].object;
         if (clickedObj.userData.isLampSwitch) {
           cordPullAnim = 1.0; // Trigger physical pull spring
+          // Add a gentle horizontal swing kick on click
+          cordVelZ += (pointer.x > 0.22 ? 0.025 : -0.025);
           onToggleLightRef.current?.();
         } else if (clickedObj.userData.index !== undefined) {
           const idx = clickedObj.userData.index;
@@ -579,30 +595,69 @@ export function LibraryScene({
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Lighting lerp — Smooth transition between Daylight (OFF) and Warm Room (ON)
+      // Lighting lerp — Smooth transition between Dark (OFF) and Warm Room (ON)
       const lit = isLightOnRef.current;
-      const targetLampInt  = lit ? 4.5 : 0.0;
-      const targetSpotInt  = lit ? 5.5 : 0.0;
-      const targetAmbInt   = lit ? 1.55 : 1.45;
-      const targetExposure = lit ? 1.25 : 1.18;
-      const targetBg       = lit ? new THREE.Color("#211b17") : new THREE.Color("#4a4f56");
-      const targetAmbColor = lit ? new THREE.Color("#fbeedc") : new THREE.Color("#dde8f5");
 
-      lampLight.intensity  += (targetLampInt  - lampLight.intensity)  * 0.10;
-      lampSpot.intensity   += (targetSpotInt  - lampSpot.intensity)   * 0.10;
-      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * 0.10;
-      ambientLight.color.lerp(targetAmbColor, 0.10);
-      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 0.10;
-      scene.background.lerp(targetBg, 0.10);
+      // OFF: very dark/moody — only faint moonlight from window
+      // ON:  warm, bright, cozy library lamp atmosphere
+      const targetLampInt  = lit ? 5.5 : 0.0;
+      const targetSpotInt  = lit ? 7.0 : 0.0;
+      const targetAmbInt   = lit ? 1.4  : 0.28;
+      const targetWinInt   = lit ? 0.55 : 0.22;
+      const targetFillInt  = lit ? 0.38 : 0.12;
+      const targetExposure = lit ? 1.28 : 0.55;
+      const targetBg       = lit ? new THREE.Color("#1c1510") : new THREE.Color("#0d0f14");
+      const targetAmbColor = lit ? new THREE.Color("#ffe8c8") : new THREE.Color("#8899bb");
 
-      // Physical Cord Pull Spring Animation
+      const lerpS = 0.07;
+      lampLight.intensity    += (targetLampInt  - lampLight.intensity)    * lerpS;
+      lampSpot.intensity     += (targetSpotInt  - lampSpot.intensity)     * lerpS;
+      ambientLight.intensity += (targetAmbInt   - ambientLight.intensity) * lerpS;
+      windowDaylight.intensity += (targetWinInt - windowDaylight.intensity) * lerpS;
+      frontFillLight.intensity += (targetFillInt - frontFillLight.intensity) * lerpS;
+      ambientLight.color.lerp(targetAmbColor, lerpS);
+      renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * lerpS;
+      scene.background.lerp(targetBg, lerpS);
+
+      // ── Cord Pendulum Physics ─────────────────────────────────────────────
+      // 1. Continuous ambient idle sway — very slow, barely noticeable drift
+      //    Low frequency (0.4Hz / 0.3Hz) + tiny amplitude = gentle lazy sway
+      const ambientSwayZ = Math.sin(elapsedTime * 0.42) * 0.009
+                         + Math.cos(elapsedTime * 0.28) * 0.004;
+      const ambientSwayX = Math.cos(elapsedTime * 0.35) * 0.003;
+
+      // 2. Interactive hover swing — slow, gentle push when moving mouse over cord
+      raycaster.setFromCamera(pointer, camera);
+      const cordHitCheck = raycaster.intersectObject(switchHitMesh);
+      isHoveringCord = cordHitCheck.length > 0;
+
+      if (isHoveringCord && Math.abs(pointerDeltaX) > 0.001) {
+        // Very small impulse — cord nudges softly in the mouse direction
+        cordVelZ += pointerDeltaX * 0.6;
+      }
+      pointerDeltaX *= 0.4; // Faster delta decay so it doesn't accumulate
+
+      // 3. Spring physics — low stiffness + heavy damping = slow, smooth settle
+      const springK = 1.8;   // soft spring — slow to snap back
+      const damping = 0.97;  // heavy friction — loses energy quickly → no bounce
+      const dt      = 0.016;
+      cordVelZ += (ambientSwayZ - cordAngleZ) * springK * dt;
+      cordVelZ *= damping;
+      cordAngleZ += cordVelZ;
+
+      // 4. Physical cord pull on click (vertical bounce)
       if (cordPullAnim > 0.001) {
         cordPullAnim *= 0.88;
-        const pullOffset = Math.sin(cordPullAnim * Math.PI) * 0.035;
+        const pullOffset = Math.sin(cordPullAnim * Math.PI) * 0.038;
         pullCordGroup.position.y = 1.38 - pullOffset;
       } else {
+        cordPullAnim = 0;
         pullCordGroup.position.y = 1.38;
       }
+
+      // 5. Apply final rotation — smooth pendulum pivot from ceiling attach point
+      pullCordGroup.rotation.z = cordAngleZ;
+      pullCordGroup.rotation.x = ambientSwayX + cordAngleZ * 0.08;
 
       // Camera parallax
       camera.position.x += (targetCameraX - camera.position.x) * 0.055;
@@ -697,25 +752,25 @@ export function LibraryScene({
         }
       }
 
-      // Hover detection
+      // Hover detection (raycaster already set for pendulum above, reuse result)
       let activeHoverIdx = null;
       if (!currentTransition && activeBookIndexRef.current == null) {
+        // Reuse raycaster already pointed at pointer
         raycaster.setFromCamera(pointer, camera);
-        const switchHit = raycaster.intersectObject(switchHitMesh);
         const hitIntersects = raycaster.intersectObjects(hitboxMeshes);
 
         if (hitIntersects.length > 0) {
           activeHoverIdx = hitIntersects[0].object.userData.index;
         }
 
-        const isHoveringInteractable = switchHit.length > 0 || hitIntersects.length > 0;
+        const isHoveringInteractable = isHoveringCord || hitIntersects.length > 0;
         renderer.domElement.style.cursor = isHoveringInteractable ? "pointer" : "default";
 
-        // Subtle glow / scale feedback on light tip when hovered
-        if (switchHit.length > 0) {
-          tipMat.emissive = new THREE.Color(0x332211);
+        // Subtle warm glow on tip when cursor is over the cord
+        if (isHoveringCord) {
+          tipMat.emissiveIntensity = 0.22;
         } else {
-          tipMat.emissive = new THREE.Color(0x000000);
+          tipMat.emissiveIntensity = 0.08;
         }
       } else {
         renderer.domElement.style.cursor = "default";
