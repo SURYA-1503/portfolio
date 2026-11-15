@@ -30,41 +30,6 @@ export function LibraryOverlay({
             Contact
           </button>
         </div>
-
-        {/* Top-Right Controls (Audio bars & minimal menu matching reference screenshot) */}
-        <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
-          {/* Audio toggle button with sound waves */}
-          <button
-            type="button"
-            onClick={onToggleAudio}
-            className="flex items-center justify-center w-8 h-8 rounded-full text-neutral-300 hover:text-white transition-colors cursor-pointer"
-            title={isAudioPlaying ? "Mute ambient audio" : "Play ambient audio"}
-          >
-            {isAudioPlaying ? (
-              <div className="flex items-center gap-0.5 h-3.5">
-                <span className="w-0.5 h-3.5 bg-amber-300 animate-pulse" />
-                <span className="w-0.5 h-2.5 bg-amber-300 animate-pulse delay-75" />
-                <span className="w-0.5 h-3 bg-amber-300 animate-pulse delay-150" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-0.5 h-3.5 opacity-60">
-                <span className="w-0.5 h-3 bg-neutral-400" />
-                <span className="w-0.5 h-2 bg-neutral-400" />
-                <span className="w-0.5 h-3 bg-neutral-400" />
-              </div>
-            )}
-          </button>
-
-          {/* Minimalist Menu icon */}
-          <button
-            type="button"
-            onClick={() => onOpenBook?.(0)}
-            className="p-1 text-neutral-300 hover:text-white transition-colors cursor-pointer"
-            title="Browse library"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </div>
       </header>
 
       {/* ── Bottom Bar ──────────────────────────────────────── */}

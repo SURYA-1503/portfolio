@@ -197,7 +197,7 @@ export function LibraryScene({
     // ─── 6. Decorative Left & Right Resting Books (Matching Screenshot) ───
     const decorMatDark1 = new THREE.MeshStandardMaterial({ color: 0x1a2128, roughness: 0.75 });
     const decorMatDark2 = new THREE.MeshStandardMaterial({ color: 0x242220, roughness: 0.78 });
-    const decorMatNavy  = new THREE.MeshStandardMaterial({ color: 0x1d293d, roughness: 0.72 });
+    const decorMatNavy = new THREE.MeshStandardMaterial({ color: 0x1d293d, roughness: 0.72 });
 
     // Left book 1: Overshoot (standing straight against left wall)
     const overshootMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.95, 0.52), decorMatDark1);
@@ -211,31 +211,63 @@ export function LibraryScene({
     frictionMesh.castShadow = true;
     shelfGroup.add(frictionMesh);
 
-    // Right book: Light (leaning against right partition)
-    const lightBookMesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.96, 0.52), decorMatNavy);
-    lightBookMesh.position.set(0.74, -0.42 + 0.96 / 2 + 0.04, 0.02);
-    lightBookMesh.rotation.z = -0.16;
+    // Right book: Light (leaning left toward the standing Contact book)
+
+    // Right decorative book: Lean LEFT toward the last standing Contact book
+    // Keep the bottom of the book fixed on the shelf while tilting.
+
+
+    // Right decorative book: Physical support for Contact book
+    // Bottom stays fixed; top leans LEFT and touches Contact.
+
+    const lightBookGroup = new THREE.Group();
+
+    // Move closer to Contact book
+    // Adjust X to control the supporting distance
+    lightBookGroup.position.set(
+      0.23,
+      -0.42 + 0.04,
+      0.02
+    );
+
+    const lightBookMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.96, 0.52),
+      decorMatNavy
+    );
+
+    // Anchor the book at its bottom
+    lightBookMesh.position.y = 0.48;
+
     lightBookMesh.castShadow = true;
-    shelfGroup.add(lightBookMesh);
+    lightBookMesh.receiveShadow = true;
+
+    lightBookGroup.add(lightBookMesh);
+
+    // Lean the top toward Contact (left)
+    lightBookGroup.rotation.z = 0.16;
+
+    shelfGroup.add(lightBookGroup);
+
+
 
     // ─── 7. The 9 Interactive Developer Books ─────────────────────────────
     const bookMeshes = [];
     const hitboxMeshes = [];
 
-    const bookWidth  = 0.192;
+    const bookWidth = 0.192;
     const bookHeight = 0.94;
-    const bookDepth  = 0.54;
-    const bookGap    = 0.007; // Tight natural arrangement without gaps
-    const startX     = -1.68; // Directly after Friction book
+    const bookDepth = 0.54;
+    const bookGap = 0.007; // Tight natural arrangement without gaps
+    const startX = -1.68; // Directly after Friction book
 
     // Soft individual organic tilts (subtle natural library lean)
     const naturalTilts = [
       0.00,   // 01 ABOUT ME
       0.015,  // 02 MY SKILLS
-     -0.02,   // 03 EXPERIENCE
+      -0.02,   // 03 EXPERIENCE
       0.00,   // 04 MY PROJECTS
       0.02,   // 05 MY JOURNEY
-     -0.012,  // 06 HOBBIES
+      -0.012,  // 06 HOBBIES
       0.008,  // 07 EDUCATION
       0.025,  // 08 RESUME
       0.00    // 09 CONTACT
@@ -538,17 +570,17 @@ export function LibraryScene({
     // ── Pendulum swing physics for the light cord ──────────────────────────
     // The cord pivot is at pullCordGroup.position (top of cord).
     // Rotating pullCordGroup.rotation.z swings it left/right like a pendulum.
-    let cordAngleZ      = 0;   // current tilt angle (radians)
-    let cordVelZ        = 0;   // angular velocity
-    let isHoveringCord  = false;
-    let lastPointerX    = -100;
-    let pointerDeltaX   = 0;
+    let cordAngleZ = 0;   // current tilt angle (radians)
+    let cordVelZ = 0;   // angular velocity
+    let isHoveringCord = false;
+    let lastPointerX = -100;
+    let pointerDeltaX = 0;
 
     const handlePointerMove = (e) => {
       const nextX = (e.clientX / width) * 2 - 1;
       const nextY = -(e.clientY / height) * 2 + 1;
       pointerDeltaX = nextX - (lastPointerX === -100 ? nextX : lastPointerX);
-      lastPointerX  = nextX;
+      lastPointerX = nextX;
       pointer.x = nextX;
       pointer.y = nextY;
       targetCameraX = 0.08 + pointer.x * 0.14;
@@ -600,19 +632,19 @@ export function LibraryScene({
 
       // OFF: very dark/moody — only faint moonlight from window
       // ON:  warm, bright, cozy library lamp atmosphere
-      const targetLampInt  = lit ? 5.5 : 0.0;
-      const targetSpotInt  = lit ? 7.0 : 0.0;
-      const targetAmbInt   = lit ? 1.4  : 0.28;
-      const targetWinInt   = lit ? 0.55 : 0.22;
-      const targetFillInt  = lit ? 0.38 : 0.12;
+      const targetLampInt = lit ? 5.5 : 0.0;
+      const targetSpotInt = lit ? 7.0 : 0.0;
+      const targetAmbInt = lit ? 1.4 : 0.28;
+      const targetWinInt = lit ? 0.55 : 0.22;
+      const targetFillInt = lit ? 0.38 : 0.12;
       const targetExposure = lit ? 1.28 : 0.55;
-      const targetBg       = lit ? new THREE.Color("#1c1510") : new THREE.Color("#0d0f14");
+      const targetBg = lit ? new THREE.Color("#1c1510") : new THREE.Color("#0d0f14");
       const targetAmbColor = lit ? new THREE.Color("#ffe8c8") : new THREE.Color("#8899bb");
 
       const lerpS = 0.07;
-      lampLight.intensity    += (targetLampInt  - lampLight.intensity)    * lerpS;
-      lampSpot.intensity     += (targetSpotInt  - lampSpot.intensity)     * lerpS;
-      ambientLight.intensity += (targetAmbInt   - ambientLight.intensity) * lerpS;
+      lampLight.intensity += (targetLampInt - lampLight.intensity) * lerpS;
+      lampSpot.intensity += (targetSpotInt - lampSpot.intensity) * lerpS;
+      ambientLight.intensity += (targetAmbInt - ambientLight.intensity) * lerpS;
       windowDaylight.intensity += (targetWinInt - windowDaylight.intensity) * lerpS;
       frontFillLight.intensity += (targetFillInt - frontFillLight.intensity) * lerpS;
       ambientLight.color.lerp(targetAmbColor, lerpS);
@@ -623,7 +655,7 @@ export function LibraryScene({
       // 1. Continuous ambient idle sway — very slow, barely noticeable drift
       //    Low frequency (0.4Hz / 0.3Hz) + tiny amplitude = gentle lazy sway
       const ambientSwayZ = Math.sin(elapsedTime * 0.42) * 0.009
-                         + Math.cos(elapsedTime * 0.28) * 0.004;
+        + Math.cos(elapsedTime * 0.28) * 0.004;
       const ambientSwayX = Math.cos(elapsedTime * 0.35) * 0.003;
 
       // 2. Interactive hover swing — slow, gentle push when moving mouse over cord
@@ -640,7 +672,7 @@ export function LibraryScene({
       // 3. Spring physics — low stiffness + heavy damping = slow, smooth settle
       const springK = 1.8;   // soft spring — slow to snap back
       const damping = 0.97;  // heavy friction — loses energy quickly → no bounce
-      const dt      = 0.016;
+      const dt = 0.016;
       cordVelZ += (ambientSwayZ - cordAngleZ) * springK * dt;
       cordVelZ *= damping;
       cordAngleZ += cordVelZ;
@@ -699,7 +731,7 @@ export function LibraryScene({
           const targetCenterX = -0.44;
           const targetCenterY = -0.03;
           const targetCenterZ = camera.position.z - 1.75;
-          const targetRotY    = -Math.PI / 2;
+          const targetRotY = -Math.PI / 2;
 
           if (currentTransition.type === "extracting") {
             const ease = rawT < 0.5
@@ -712,9 +744,9 @@ export function LibraryScene({
 
             const liftY = mesh.userData.baseY + Math.sin(rawT * Math.PI) * 0.18 + (targetCenterY - mesh.userData.baseY) * ease;
             const moveX = mesh.userData.baseX + (targetCenterX - mesh.userData.baseX) * ease;
-            const rotY  = targetRotY * ease;
-            const rotX  = Math.sin(rawT * Math.PI) * 0.14;
-            const rotZ  = -Math.sin(rawT * Math.PI) * 0.05;
+            const rotY = targetRotY * ease;
+            const rotX = Math.sin(rawT * Math.PI) * 0.14;
+            const rotZ = -Math.sin(rawT * Math.PI) * 0.05;
 
             mesh.position.set(moveX, liftY, pullZ);
             mesh.rotation.set(rotX, rotY, rotZ);
@@ -731,9 +763,9 @@ export function LibraryScene({
             const moveY = targetCenterY + (mesh.userData.baseY - targetCenterY) * returnEase
               + Math.sin((1 - rawT) * Math.PI) * 0.10;
             const moveZ = targetCenterZ + (mesh.userData.baseZ - targetCenterZ) * returnEase;
-            const rotY  = targetRotY * (1 - returnEase);
-            const rotX  = Math.sin((1 - rawT) * Math.PI) * 0.08;
-            const rotZ  = mesh.userData.baseRotZ * returnEase + (-Math.sin((1 - rawT) * Math.PI) * 0.04) * (1 - returnEase);
+            const rotY = targetRotY * (1 - returnEase);
+            const rotX = Math.sin((1 - rawT) * Math.PI) * 0.08;
+            const rotZ = mesh.userData.baseRotZ * returnEase + (-Math.sin((1 - rawT) * Math.PI) * 0.04) * (1 - returnEase);
 
             mesh.position.set(moveX, moveY, moveZ);
             mesh.rotation.set(rotX, rotY, rotZ);
@@ -741,8 +773,8 @@ export function LibraryScene({
             if (rawT >= 1) {
               mesh.position.set(mesh.userData.baseX, mesh.userData.baseY, mesh.userData.baseZ);
               mesh.rotation.set(0, 0, mesh.userData.baseRotZ);
-              mesh.userData.targetZ    = mesh.userData.baseZ;
-              mesh.userData.targetY    = mesh.userData.baseY;
+              mesh.userData.targetZ = mesh.userData.baseZ;
+              mesh.userData.targetY = mesh.userData.baseY;
               mesh.userData.targetRotX = 0;
               mesh.userData.targetRotY = 0;
               mesh.userData.targetRotZ = mesh.userData.baseRotZ;
@@ -801,34 +833,34 @@ export function LibraryScene({
           mesh.userData.targetRotX = tiltFactorX;
           mesh.userData.targetRotZ = mesh.userData.baseRotZ;
         } else {
-          mesh.userData.targetZ    = mesh.userData.baseZ;
-          mesh.userData.targetY    = mesh.userData.baseY;
+          mesh.userData.targetZ = mesh.userData.baseZ;
+          mesh.userData.targetY = mesh.userData.baseY;
           mesh.userData.targetRotY = 0;
           mesh.userData.targetRotX = 0;
           mesh.userData.targetRotZ = mesh.userData.baseRotZ;
         }
 
         const lerpFactor = 0.15;
-        mesh.position.z  += (mesh.userData.targetZ    - mesh.position.z)  * lerpFactor;
-        mesh.position.y  += (mesh.userData.targetY    - mesh.position.y)  * lerpFactor;
-        mesh.rotation.x  += (mesh.userData.targetRotX - mesh.rotation.x)  * lerpFactor;
-        mesh.rotation.y  += (mesh.userData.targetRotY - mesh.rotation.y)  * lerpFactor;
-        mesh.rotation.z  += (mesh.userData.targetRotZ - mesh.rotation.z)  * lerpFactor;
+        mesh.position.z += (mesh.userData.targetZ - mesh.position.z) * lerpFactor;
+        mesh.position.y += (mesh.userData.targetY - mesh.position.y) * lerpFactor;
+        mesh.rotation.x += (mesh.userData.targetRotX - mesh.rotation.x) * lerpFactor;
+        mesh.rotation.y += (mesh.userData.targetRotY - mesh.rotation.y) * lerpFactor;
+        mesh.rotation.z += (mesh.userData.targetRotZ - mesh.rotation.z) * lerpFactor;
       });
 
       // Rotating Clock Hands in real-time
       const now = new Date();
       const sec = now.getSeconds() + now.getMilliseconds() / 1000;
       const min = now.getMinutes() + sec / 60;
-      const hr  = (now.getHours() % 12) + min / 60;
+      const hr = (now.getHours() % 12) + min / 60;
 
-      hourHand.rotation.z = -hr  * ((Math.PI * 2) / 12);
-      minHand.rotation.z  = -min * ((Math.PI * 2) / 60);
-      secHand.rotation.z  = -sec * ((Math.PI * 2) / 60);
+      hourHand.rotation.z = -hr * ((Math.PI * 2) / 12);
+      minHand.rotation.z = -min * ((Math.PI * 2) / 60);
+      secHand.rotation.z = -sec * ((Math.PI * 2) / 60);
 
       // Mobile sway
-      mobileGroup.rotation.y = Math.sin(elapsedTime * 0.7)  * 0.14;
-      mobileGroup.rotation.z = Math.cos(elapsedTime * 0.5)  * 0.03;
+      mobileGroup.rotation.y = Math.sin(elapsedTime * 0.7) * 0.14;
+      mobileGroup.rotation.z = Math.cos(elapsedTime * 0.5) * 0.03;
 
       renderer.render(scene, camera);
     };
@@ -837,7 +869,7 @@ export function LibraryScene({
 
     // ─── 14. Responsive Resize ────────────────────────────────────────────
     const handleResize = () => {
-      width  = window.innerWidth;
+      width = window.innerWidth;
       height = window.innerHeight;
       camera.aspect = width / height;
 
